@@ -19,11 +19,14 @@ package org.sufficientlysecure.keychain.helper;
 
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.os.Messenger;
 import org.sufficientlysecure.keychain.keyimport.HkpKeyserver;
 import org.sufficientlysecure.keychain.keyimport.ImportKeysListEntry;
 import org.sufficientlysecure.keychain.keyimport.Keyserver;
+import org.sufficientlysecure.keychain.pgp.PgpKeyHelper;
+import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.service.KeychainIntentService;
 
 import java.util.ArrayList;
@@ -42,7 +45,28 @@ public class EmailKeyHelper {
         for (String mail : mails) {
             keys.addAll(getEmailKeys(context, mail));
         }
-        importKeys(context, messenger, new ArrayList<ImportKeysListEntry>(keys));
+        List<ImportKeysListEntry> toImport = new ArrayList<ImportKeysListEntry>();
+        Cursor existing = context.getContentResolver().query(KeychainContract.KeyRings.buildUnifiedKeyRingsUri(),
+                new String[]{KeychainContract.KeyRings.FINGERPRINT, KeychainContract.KeyRings.KEY_ID}, null, null, null);
+        if (existing != null) {
+            List<String> ids = new ArrayList<String>();
+            while (existing.moveToNext()) {
+                ids.add(PgpKeyHelper.convertFingerprintToHex(existing.getBlob(0)));
+                ids.add(PgpKeyHelper.convertKeyIdToHex(existing.getLong(1)));
+                ids.add(PgpKeyHelper.convertKeyIdToHexShort(existing.getLong(1)));
+            }
+            existing.close();
+            for (ImportKeysListEntry key : keys) {
+                if (key.getFingerprintHex() != null && !ids.contains(key.getFingerprintHex().toLowerCase()) ||
+                        key.getKeyIdHex() != null && !ids.contains(key.getKeyIdHex().toLowerCase())) {
+                    toImport.add(key);
+                }
+            }
+        } else {
+            toImport.addAll(keys);
+        }
+
+        importKeys(context, messenger, toImport);
     }
 
     public static List<ImportKeysListEntry> getEmailKeys(Context context, String mail) {
@@ -69,15 +93,17 @@ public class EmailKeyHelper {
     }
 
     private static void importKeys(Context context, Messenger messenger, List<ImportKeysListEntry> keys) {
-        Intent importIntent = new Intent(context, KeychainIntentService.class);
-        importIntent.setAction(KeychainIntentService.ACTION_DOWNLOAD_AND_IMPORT_KEYS);
-        Bundle importData = new Bundle();
-        importData.putParcelableArrayList(KeychainIntentService.DOWNLOAD_KEY_LIST,
-                new ArrayList<ImportKeysListEntry>(keys));
-        importIntent.putExtra(KeychainIntentService.EXTRA_DATA, importData);
-        importIntent.putExtra(KeychainIntentService.EXTRA_MESSENGER, messenger);
+        if (!keys.isEmpty()) {
+            Intent importIntent = new Intent(context, KeychainIntentService.class);
+            importIntent.setAction(KeychainIntentService.ACTION_DOWNLOAD_AND_IMPORT_KEYS);
+            Bundle importData = new Bundle();
+            importData.putParcelableArrayList(KeychainIntentService.DOWNLOAD_KEY_LIST,
+                    new ArrayList<ImportKeysListEntry>(keys));
+            importIntent.putExtra(KeychainIntentService.EXTRA_DATA, importData);
+            importIntent.putExtra(KeychainIntentService.EXTRA_MESSENGER, messenger);
 
-        context.startService(importIntent);
+            context.startService(importIntent);
+        }
     }
 
     public static List<ImportKeysListEntry> getEmailKeys(String mail, Keyserver keyServer) {
