@@ -23,6 +23,7 @@ import org.sufficientlysecure.keychain.util.Log;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,10 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyManagementException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +45,7 @@ public class TlsHelper {
     }
 
     private static Map<String, byte[]> sStaticCA = new HashMap<String, byte[]>();
+    private static Map<byte[], SSLSocketFactory> sFactoryMap = new HashMap<byte[], SSLSocketFactory>();
 
     public static void addStaticCA(String domain, byte[] certificate) {
         sStaticCA.put(domain, certificate);
@@ -71,6 +70,36 @@ public class TlsHelper {
         }
     }
 
+    public static SSLSocketFactory getSocketFactory(byte[] certificate) throws TlsHelperException {
+        if (!sFactoryMap.containsKey(certificate)) {
+            try {
+                // Load CA
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                Certificate ca = cf.generateCertificate(new ByteArrayInputStream(certificate));
+
+                // Create a KeyStore containing our trusted CAs
+                String keyStoreType = KeyStore.getDefaultType();
+                KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+                keyStore.load(null, null);
+                keyStore.setCertificateEntry("ca", ca);
+
+                // Create a TrustManager that trusts the CAs in our KeyStore
+                String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
+                tmf.init(keyStore);
+
+                // Create an SSLContext that uses our TrustManager
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(null, tmf.getTrustManagers(), null);
+
+                sFactoryMap.put(certificate, context.getSocketFactory());
+            } catch (Exception e) {
+                throw new TlsHelperException(e);
+            }
+        }
+        return sFactoryMap.get(certificate);
+    }
+
     public static URLConnection openConnection(URL url) throws IOException, TlsHelperException {
         if (url.getProtocol().equals("https")) {
             for (String domain : sStaticCA.keySet()) {
@@ -91,39 +120,10 @@ public class TlsHelper {
      */
     public static HttpsURLConnection openCAConnection(byte[] certificate, URL url)
             throws TlsHelperException, IOException {
-        try {
-            // Load CA
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            Certificate ca = cf.generateCertificate(new ByteArrayInputStream(certificate));
+        // Tell the URLConnection to use a SocketFactory from our SSLContext
+        HttpsURLConnection urlConnection = (HttpsURLConnection) url.openConnection();
+        urlConnection.setSSLSocketFactory(getSocketFactory(certificate));
 
-            // Create a KeyStore containing our trusted CAs
-            String keyStoreType = KeyStore.getDefaultType();
-            KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-            keyStore.load(null, null);
-            keyStore.setCertificateEntry("ca", ca);
-
-            // Create a TrustManager that trusts the CAs in our KeyStore
-            String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
-            tmf.init(keyStore);
-
-            // Create an SSLContext that uses our TrustManager
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, tmf.getTrustManagers(), null);
-
-            // Tell the URLConnection to use a SocketFactory from our SSLContext
-            HttpsURLConnection urlConnection = (HttpsURLConnection) url.openConnection();
-            urlConnection.setSSLSocketFactory(context.getSocketFactory());
-
-            return urlConnection;
-        } catch (CertificateException e) {
-            throw new TlsHelperException(e);
-        } catch (NoSuchAlgorithmException e) {
-            throw new TlsHelperException(e);
-        } catch (KeyStoreException e) {
-            throw new TlsHelperException(e);
-        } catch (KeyManagementException e) {
-            throw new TlsHelperException(e);
-        }
+        return urlConnection;
     }
 }
