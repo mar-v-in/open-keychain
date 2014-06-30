@@ -272,7 +272,7 @@ public class ProviderHelper {
      */
     @SuppressWarnings("unchecked")
     private int internalSavePublicKeyRing(UncachedKeyRing keyRing,
-                Progressable progress, boolean selfCertsAreTrusted) {
+                Progressable progress, boolean selfCertsAreTrusted, int keyRingOrigin) {
         if (keyRing.isSecret()) {
             log(LogLevel.ERROR, LogType.MSG_IP_BAD_TYPE_SECRET);
             return SaveKeyringResult.RESULT_ERROR;
@@ -307,6 +307,7 @@ public class ProviderHelper {
                     log(LogLevel.ERROR, LogType.MSG_IP_ENCODE_FAIL);
                     return SaveKeyringResult.RESULT_ERROR;
                 }
+                values.put(KeyRingData.KEY_RING_ORIGIN, keyRingOrigin);
 
                 Uri uri = KeyRingData.buildPublicKeyRingUri(Long.toString(masterKeyId));
                 operations.add(ContentProviderOperation.newInsert(uri).withValues(values).build());
@@ -657,7 +658,7 @@ public class ProviderHelper {
 
     @Deprecated
     public SaveKeyringResult savePublicKeyRing(UncachedKeyRing keyRing) {
-        return savePublicKeyRing(keyRing, new NullProgressable());
+        return savePublicKeyRing(keyRing, new NullProgressable(), KeychainContract.KeyRingOrigin.UNKNOWN);
     }
 
     /** Save a public keyring into the database.
@@ -665,7 +666,7 @@ public class ProviderHelper {
      * This is a high level method, which takes care of merging all new information into the old and
      * keep public and secret keyrings in sync.
      */
-    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, Progressable progress) {
+    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, Progressable progress, int keyRingOrigin) {
 
         try {
             long masterKeyId = publicRing.getMasterKeyId();
@@ -728,7 +729,7 @@ public class ProviderHelper {
                 secretRing = null;
             }
 
-            int result = internalSavePublicKeyRing(publicRing, progress, secretRing != null);
+            int result = internalSavePublicKeyRing(publicRing, progress, secretRing != null, keyRingOrigin);
 
             // Save the saved keyring (if any)
             if (secretRing != null) {
@@ -822,7 +823,7 @@ public class ProviderHelper {
                     return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
                 }
 
-                int result = internalSavePublicKeyRing(publicRing, progress, true);
+                int result = internalSavePublicKeyRing(publicRing, progress, true, KeychainContract.KeyRingOrigin.SECRET);
                 if ((result & SaveKeyringResult.RESULT_ERROR) == SaveKeyringResult.RESULT_ERROR) {
                     return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
                 }
@@ -852,7 +853,7 @@ public class ProviderHelper {
         mContentResolver.delete(KeyRingData.buildSecretKeyRingUri(Long.toString(masterKeyId)), null, null);
 
         // save public keyring
-        internalSavePublicKeyRing(pubRing, null, true);
+        internalSavePublicKeyRing(pubRing, null, true, KeychainContract.KeyRingOrigin.SECRET);
         internalSaveSecretKeyRing(secRing);
     }
 

@@ -49,6 +49,7 @@ import org.sufficientlysecure.keychain.pgp.WrappedSecretKey;
 import org.sufficientlysecure.keychain.pgp.WrappedSecretKeyRing;
 import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralException;
 import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralMsgIdException;
+import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRings;
 import org.sufficientlysecure.keychain.provider.KeychainDatabase;
 import org.sufficientlysecure.keychain.provider.ProviderHelper;
@@ -135,6 +136,7 @@ public class KeychainIntentService extends IntentService
 
     // import key
     public static final String IMPORT_KEY_LIST = "import_key_list";
+    public static final String IMPORT_KEY_ORIGIN = "import_key_origin";
 
     // export key
     public static final String EXPORT_OUTPUT_STREAM = "export_output_stream";
@@ -376,9 +378,13 @@ public class KeychainIntentService extends IntentService
         } else if (ACTION_IMPORT_KEYRING.equals(action)) {
             try {
                 List<ParcelableKeyRing> entries = data.getParcelableArrayList(IMPORT_KEY_LIST);
+                int keyRingOrigin = KeychainContract.KeyRingOrigin.UNKNOWN;
+                if (data.containsKey(IMPORT_KEY_ORIGIN)) {
+                    keyRingOrigin = data.getInt(IMPORT_KEY_ORIGIN);
+                }
 
                 PgpImportExport pgpImportExport = new PgpImportExport(this, this);
-                OperationResults.ImportResult result = pgpImportExport.importKeyRings(entries);
+                OperationResults.ImportResult result = pgpImportExport.importKeyRings(entries, keyRingOrigin);
 
                 Bundle resultData = new Bundle();
                 resultData.putParcelable(RESULT, result);
@@ -470,6 +476,10 @@ public class KeychainIntentService extends IntentService
         } else if (ACTION_DOWNLOAD_AND_IMPORT_KEYS.equals(action) || ACTION_IMPORT_KEYBASE_KEYS.equals(action)) {
             try {
                 ArrayList<ImportKeysListEntry> entries = data.getParcelableArrayList(DOWNLOAD_KEY_LIST);
+                int keyRingOrigin = KeychainContract.KeyRingOrigin.SERVER;
+                if (data.containsKey(IMPORT_KEY_ORIGIN)) {
+                    keyRingOrigin = data.getInt(IMPORT_KEY_ORIGIN);
+                }
 
                 // this downloads the keys and places them into the ImportKeysListEntry entries
                 String keyServer = data.getString(DOWNLOAD_KEY_SERVER);
@@ -505,6 +515,7 @@ public class KeychainIntentService extends IntentService
                 importIntent.setAction(ACTION_IMPORT_KEYRING);
                 Bundle importData = new Bundle();
                 importData.putParcelableArrayList(IMPORT_KEY_LIST, keyRings);
+                importData.putInt(IMPORT_KEY_ORIGIN, keyRingOrigin);
                 importIntent.putExtra(EXTRA_DATA, importData);
                 importIntent.putExtra(EXTRA_MESSENGER, mMessenger);
 
