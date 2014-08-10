@@ -27,7 +27,6 @@ public class KeychainContract {
     interface KeyRingsColumns {
         String MASTER_KEY_ID = "master_key_id"; // not a database id
         String KEY_RING_DATA = "key_ring_data"; // PGPPublicKeyRing / PGPSecretKeyRing blob
-        String KEY_RING_ORIGIN = "key_ring_origin"; // only for public keyrings
     }
 
     interface KeysColumns {
@@ -317,39 +316,6 @@ public class KeychainContract {
             return CONTENT_URI.buildUpon().appendPath(uri.getPathSegments().get(1)).appendPath(PATH_CERTS).build();
         }
 
-    }
-
-    public static class KeyRingOrigin {
-
-        /**
-         * Key was retrieved automatically (eg contact sync)
-         */
-        public static final int AUTO = -1;
-
-        /**
-         * Default for old keys
-         */
-        public static final int UNKNOWN = 0;
-
-        /**
-         * Key was downloaded from a server, possibly without reliability check
-         */
-        public static final int SERVER = 1;
-
-        /**
-         * Key (or key id) was transferred using a reliable method, eg QR code or usb stick
-         */
-        public static final int DIRECT = 2;
-
-        /**
-         * Key was used
-         */
-        public static final int USAGE = 3;
-
-        /**
-         * Public key is part of a secret key
-         */
-        public static final int SECRET = 4;
     }
 
     private KeychainContract() {

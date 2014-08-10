@@ -116,12 +116,12 @@ public class ProviderHelper {
 
     public void log(LogLevel level, LogType type) {
         if(mLog != null) {
-            mLog.add(level, type, mIndent);
+            mLog.add(level, type, null, mIndent);
         }
     }
-    public void log(LogLevel level, LogType type, Object... parameters) {
+    public void log(LogLevel level, LogType type, String[] parameters) {
         if(mLog != null) {
-            mLog.add(level, type, mIndent, parameters);
+            mLog.add(level, type, parameters, mIndent);
         }
     }
 
@@ -272,7 +272,7 @@ public class ProviderHelper {
      */
     @SuppressWarnings("unchecked")
     private int internalSavePublicKeyRing(UncachedKeyRing keyRing,
-                Progressable progress, boolean selfCertsAreTrusted, int keyRingOrigin) {
+                Progressable progress, boolean selfCertsAreTrusted) {
         if (keyRing.isSecret()) {
             log(LogLevel.ERROR, LogType.MSG_IP_BAD_TYPE_SECRET);
             return SaveKeyringResult.RESULT_ERROR;
@@ -307,7 +307,6 @@ public class ProviderHelper {
                     log(LogLevel.ERROR, LogType.MSG_IP_ENCODE_FAIL);
                     return SaveKeyringResult.RESULT_ERROR;
                 }
-                values.put(KeyRingData.KEY_RING_ORIGIN, keyRingOrigin);
 
                 Uri uri = KeyRingData.buildPublicKeyRingUri(Long.toString(masterKeyId));
                 operations.add(ContentProviderOperation.newInsert(uri).withValues(values).build());
@@ -321,9 +320,9 @@ public class ProviderHelper {
                 int rank = 0;
                 for (UncachedPublicKey key : new IterableIterator<UncachedPublicKey>(keyRing.getPublicKeys())) {
                     long keyId = key.getKeyId();
-                    log(LogLevel.DEBUG, keyId == masterKeyId ? LogType.MSG_IP_MASTER : LogType.MSG_IP_SUBKEY,
+                    log(LogLevel.DEBUG, keyId == masterKeyId ? LogType.MSG_IP_MASTER : LogType.MSG_IP_SUBKEY, new String[]{
                             PgpKeyHelper.convertKeyIdToHex(keyId)
-                    );
+                    });
                     mIndent += 1;
 
                     ContentValues values = new ContentValues();
@@ -344,36 +343,36 @@ public class ProviderHelper {
                         if (c) {
                             if (e) {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_MASTER_FLAGS_CES
-                                        : LogType.MSG_IP_MASTER_FLAGS_CEX);
+                                        : LogType.MSG_IP_MASTER_FLAGS_CEX, null);
                             } else {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_MASTER_FLAGS_CXS
-                                        : LogType.MSG_IP_MASTER_FLAGS_CXX);
+                                        : LogType.MSG_IP_MASTER_FLAGS_CXX, null);
                             }
                         } else {
                             if (e) {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_MASTER_FLAGS_XES
-                                        : LogType.MSG_IP_MASTER_FLAGS_XEX);
+                                        : LogType.MSG_IP_MASTER_FLAGS_XEX, null);
                             } else {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_MASTER_FLAGS_XXS
-                                        : LogType.MSG_IP_MASTER_FLAGS_XXX);
+                                        : LogType.MSG_IP_MASTER_FLAGS_XXX, null);
                             }
                         }
                     } else {
                         if (c) {
                             if (e) {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_SUBKEY_FLAGS_CES
-                                        : LogType.MSG_IP_SUBKEY_FLAGS_CEX);
+                                        : LogType.MSG_IP_SUBKEY_FLAGS_CEX, null);
                             } else {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_SUBKEY_FLAGS_CXS
-                                        : LogType.MSG_IP_SUBKEY_FLAGS_CXX);
+                                        : LogType.MSG_IP_SUBKEY_FLAGS_CXX, null);
                             }
                         } else {
                             if (e) {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_SUBKEY_FLAGS_XES
-                                        : LogType.MSG_IP_SUBKEY_FLAGS_XEX);
+                                        : LogType.MSG_IP_SUBKEY_FLAGS_XEX, null);
                             } else {
                                 log(LogLevel.DEBUG, s ? LogType.MSG_IP_SUBKEY_FLAGS_XXS
-                                        : LogType.MSG_IP_SUBKEY_FLAGS_XXX);
+                                        : LogType.MSG_IP_SUBKEY_FLAGS_XXX, null);
                             }
                         }
                     }
@@ -386,11 +385,11 @@ public class ProviderHelper {
                         if (key.isExpired()) {
                             log(LogLevel.DEBUG, keyId == masterKeyId ?
                                     LogType.MSG_IP_MASTER_EXPIRED : LogType.MSG_IP_SUBKEY_EXPIRED,
-                                    expiryDate.toString());
+                                    new String[]{ expiryDate.toString() });
                         } else {
                             log(LogLevel.DEBUG, keyId == masterKeyId ?
                                     LogType.MSG_IP_MASTER_EXPIRES : LogType.MSG_IP_SUBKEY_EXPIRES,
-                                    expiryDate.toString());
+                                    new String[] { expiryDate.toString() });
                         }
                     }
 
@@ -406,7 +405,9 @@ public class ProviderHelper {
 
             // classify and order user ids. primary are moved to the front, revoked to the back,
             // otherwise the order in the keyfile is preserved.
-            log(LogLevel.INFO, LogType.MSG_IP_UID_CLASSIFYING, trustedKeys.size());
+            log(LogLevel.INFO, LogType.MSG_IP_UID_CLASSIFYING, new String[]{
+                    Integer.toString(trustedKeys.size())
+            });
             mIndent += 1;
             List<UserIdItem> uids = new ArrayList<UserIdItem>();
             for (String userId : new IterableIterator<String>(
@@ -417,7 +418,7 @@ public class ProviderHelper {
 
                 int unknownCerts = 0;
 
-                log(LogLevel.INFO, LogType.MSG_IP_UID_PROCESSING, userId);
+                log(LogLevel.INFO, LogType.MSG_IP_UID_PROCESSING, new String[]{ userId });
                 mIndent += 1;
                 // look through signatures for this specific key
                 for (WrappedSignature cert : new IterableIterator<WrappedSignature>(
@@ -446,10 +447,10 @@ public class ProviderHelper {
                             cert.init(trustedKey);
                             if (cert.verifySignature(masterKey, userId)) {
                                 item.trustedCerts.add(cert);
-                                log(LogLevel.INFO, LogType.MSG_IP_UID_CERT_GOOD,
+                                log(LogLevel.INFO, LogType.MSG_IP_UID_CERT_GOOD, new String[] {
                                         PgpKeyHelper.convertKeyIdToHexShort(trustedKey.getKeyId()),
                                         trustedKey.getPrimaryUserId()
-                                );
+                                });
                             } else {
                                 log(LogLevel.WARN, LogType.MSG_IP_UID_CERT_BAD);
                             }
@@ -458,13 +459,16 @@ public class ProviderHelper {
                         unknownCerts += 1;
 
                     } catch (PgpGeneralException e) {
-                        log(LogLevel.WARN, LogType.MSG_IP_UID_CERT_ERROR,
-                                PgpKeyHelper.convertKeyIdToHex(cert.getKeyId()));
+                        log(LogLevel.WARN, LogType.MSG_IP_UID_CERT_ERROR, new String[]{
+                                PgpKeyHelper.convertKeyIdToHex(cert.getKeyId())
+                        });
                     }
                 }
 
                 if (unknownCerts > 0) {
-                    log(LogLevel.DEBUG, LogType.MSG_IP_UID_CERTS_UNKNOWN, unknownCerts);
+                    log(LogLevel.DEBUG, LogType.MSG_IP_UID_CERTS_UNKNOWN, new String[]{
+                            Integer.toString(unknownCerts)
+                    });
                 }
                 mIndent -= 1;
 
@@ -570,7 +574,8 @@ public class ProviderHelper {
         }
 
         long masterKeyId = keyRing.getMasterKeyId();
-        log(LogLevel.START, LogType.MSG_IS, PgpKeyHelper.convertKeyIdToHex(masterKeyId));
+        log(LogLevel.START, LogType.MSG_IS,
+                new String[]{ PgpKeyHelper.convertKeyIdToHex(masterKeyId) });
         mIndent += 1;
         try {
 
@@ -620,18 +625,18 @@ public class ProviderHelper {
                         int upd = mContentResolver.update(uri, values, Keys.KEY_ID + " = ?",
                                 new String[]{Long.toString(id)});
                         if (upd == 1) {
-                            log(LogLevel.DEBUG, LogType.MSG_IS_SUBKEY_OK,
+                            log(LogLevel.DEBUG, LogType.MSG_IS_SUBKEY_OK, new String[]{
                                     PgpKeyHelper.convertKeyIdToHex(id)
-                            );
+                            });
                         } else {
-                            log(LogLevel.WARN, LogType.MSG_IS_SUBKEY_NONEXISTENT,
+                            log(LogLevel.WARN, LogType.MSG_IS_SUBKEY_NONEXISTENT, new String[]{
                                     PgpKeyHelper.convertKeyIdToHex(id)
-                            );
+                            });
                         }
                     } else {
-                        log(LogLevel.INFO, LogType.MSG_IS_SUBKEY_STRIPPED,
+                        log(LogLevel.INFO, LogType.MSG_IS_SUBKEY_STRIPPED, new String[]{
                                 PgpKeyHelper.convertKeyIdToHex(id)
-                        );
+                        });
                     }
                 }
                 mIndent -= 1;
@@ -649,8 +654,10 @@ public class ProviderHelper {
 
     }
 
+
+    @Deprecated
     public SaveKeyringResult savePublicKeyRing(UncachedKeyRing keyRing) {
-        return savePublicKeyRing(keyRing, new NullProgressable(), KeychainContract.KeyRingOrigin.UNKNOWN);
+        return savePublicKeyRing(keyRing, new NullProgressable());
     }
 
     /** Save a public keyring into the database.
@@ -658,11 +665,12 @@ public class ProviderHelper {
      * This is a high level method, which takes care of merging all new information into the old and
      * keep public and secret keyrings in sync.
      */
-    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, Progressable progress, int keyRingOrigin) {
+    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, Progressable progress) {
 
         try {
             long masterKeyId = publicRing.getMasterKeyId();
-            log(LogLevel.START, LogType.MSG_IP, PgpKeyHelper.convertKeyIdToHex(masterKeyId));
+            log(LogLevel.START, LogType.MSG_IP,
+                    new String[]{ PgpKeyHelper.convertKeyIdToHex(masterKeyId) });
             mIndent += 1;
 
             // If there is an old keyring, merge it
@@ -686,8 +694,8 @@ public class ProviderHelper {
                 // Early breakout if nothing changed
                 if (Arrays.hashCode(publicRing.getEncoded())
                         == Arrays.hashCode(oldPublicRing.getEncoded())) {
-                    log(LogLevel.OK, LogType.MSG_IP_SUCCESS_IDENTICAL);
-                    return new SaveKeyringResult(SaveKeyringResult.UPDATED, mLog);
+                    log(LogLevel.OK, LogType.MSG_IP_SUCCESS_IDENTICAL, null);
+                    return new SaveKeyringResult(SaveKeyringResult.RESULT_OK, mLog);
                 }
             } catch (NotFoundException e) {
                 // Not an issue, just means we are dealing with a new keyring.
@@ -720,7 +728,7 @@ public class ProviderHelper {
                 secretRing = null;
             }
 
-            int result = internalSavePublicKeyRing(publicRing, progress, secretRing != null, keyRingOrigin);
+            int result = internalSavePublicKeyRing(publicRing, progress, secretRing != null);
 
             // Save the saved keyring (if any)
             if (secretRing != null) {
@@ -746,7 +754,8 @@ public class ProviderHelper {
 
         try {
             long masterKeyId = secretRing.getMasterKeyId();
-            log(LogLevel.START, LogType.MSG_IS, PgpKeyHelper.convertKeyIdToHex(masterKeyId));
+            log(LogLevel.START, LogType.MSG_IS,
+                    new String[]{ PgpKeyHelper.convertKeyIdToHex(masterKeyId) });
             mIndent += 1;
 
             // If there is an old secret key, merge it.
@@ -771,8 +780,8 @@ public class ProviderHelper {
                 if (Arrays.hashCode(secretRing.getEncoded())
                         == Arrays.hashCode(oldSecretRing.getEncoded())) {
                     log(LogLevel.OK, LogType.MSG_IS_SUCCESS_IDENTICAL,
-                            PgpKeyHelper.convertKeyIdToHex(masterKeyId) );
-                    return new SaveKeyringResult(SaveKeyringResult.UPDATED, mLog);
+                            new String[]{ PgpKeyHelper.convertKeyIdToHex(masterKeyId) });
+                    return new SaveKeyringResult(SaveKeyringResult.RESULT_OK, mLog);
                 }
             } catch (NotFoundException e) {
                 // Not an issue, just means we are dealing with a new keyring
@@ -803,7 +812,7 @@ public class ProviderHelper {
                 }
 
             } catch (NotFoundException e) {
-                log(LogLevel.DEBUG, LogType.MSG_IS_PUBRING_GENERATE);
+                log(LogLevel.DEBUG, LogType.MSG_IS_PUBRING_GENERATE, null);
                 publicRing = secretRing.extractPublicKeyRing();
             }
 
@@ -813,7 +822,7 @@ public class ProviderHelper {
                     return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
                 }
 
-                int result = internalSavePublicKeyRing(publicRing, progress, true, KeychainContract.KeyRingOrigin.SECRET);
+                int result = internalSavePublicKeyRing(publicRing, progress, true);
                 if ((result & SaveKeyringResult.RESULT_ERROR) == SaveKeyringResult.RESULT_ERROR) {
                     return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
                 }
@@ -824,12 +833,27 @@ public class ProviderHelper {
             return new SaveKeyringResult(result, mLog);
 
         } catch (IOException e) {
-            log(LogLevel.ERROR, LogType.MSG_IS_FAIL_IO_EXC);
+            log(LogLevel.ERROR, LogType.MSG_IS_FAIL_IO_EXC, null);
             return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
         } finally {
             mIndent -= 1;
         }
 
+    }
+
+    /**
+     * Saves (or updates) a pair of public and secret KeyRings in the database
+     */
+    @Deprecated // scheduled for deletion after merge with new-edit branch
+    public void savePairedKeyRing(UncachedKeyRing pubRing, UncachedKeyRing secRing) throws IOException {
+        long masterKeyId = pubRing.getMasterKeyId();
+
+        // delete secret keyring (so it isn't unnecessarily saved by public-savePublicKeyRing below)
+        mContentResolver.delete(KeyRingData.buildSecretKeyRingUri(Long.toString(masterKeyId)), null, null);
+
+        // save public keyring
+        internalSavePublicKeyRing(pubRing, null, true);
+        internalSaveSecretKeyRing(secRing);
     }
 
     /**

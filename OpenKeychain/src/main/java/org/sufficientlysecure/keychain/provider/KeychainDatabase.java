@@ -51,7 +51,7 @@ import java.io.IOException;
  */
 public class KeychainDatabase extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "openkeychain.db";
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 2;
     static Boolean apgHack = false;
 
     public interface Tables {
@@ -66,9 +66,8 @@ public class KeychainDatabase extends SQLiteOpenHelper {
 
     private static final String CREATE_KEYRINGS_PUBLIC =
             "CREATE TABLE IF NOT EXISTS keyrings_public ("
-                    + KeyRingsColumns.MASTER_KEY_ID + " INTEGER PRIMARY KEY,"
-                    + KeyRingsColumns.KEY_RING_DATA + " BLOB,"
-                    + KeyRingsColumns.KEY_RING_ORIGIN + " INTEGER"
+                + KeyRingsColumns.MASTER_KEY_ID + " INTEGER PRIMARY KEY,"
+                + KeyRingsColumns.KEY_RING_DATA + " BLOB"
             + ")";
 
     private static final String CREATE_KEYRINGS_SECRET =
@@ -208,16 +207,6 @@ public class KeychainDatabase extends SQLiteOpenHelper {
                 db.execSQL("ALTER TABLE keys ADD COLUMN has_secret BOOLEAN");
             } catch (Exception e) {
                 // never mind, the column probably already existed
-            }
-            oldVersion = 2;
-        }
-        if (oldVersion == 2) {
-            // add key_ring_origin for public keys
-            try {
-                db.execSQL("ALTER TABLE " + Tables.KEY_RINGS_PUBLIC +
-                        " ADD COLUMN " + KeyRingsColumns.KEY_RING_ORIGIN +
-                        " INTEGER DEFAULT " + KeychainContract.KeyRingOrigin.UNKNOWN);
-            } catch (Exception ignored) {
             }
         }
     }

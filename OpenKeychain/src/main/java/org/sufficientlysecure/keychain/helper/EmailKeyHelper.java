@@ -99,7 +99,6 @@ public class EmailKeyHelper {
             Bundle importData = new Bundle();
             importData.putParcelableArrayList(KeychainIntentService.DOWNLOAD_KEY_LIST,
                     new ArrayList<ImportKeysListEntry>(keys));
-            importData.putInt(KeychainIntentService.IMPORT_KEY_ORIGIN, KeychainContract.KeyRingOrigin.AUTO);
             importIntent.putExtra(KeychainIntentService.EXTRA_DATA, importData);
             importIntent.putExtra(KeychainIntentService.EXTRA_MESSENGER, messenger);
 
