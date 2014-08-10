@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2014 Dominik Schürmann <dominik@dominikschuermann.de>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package org.sufficientlysecure.keychain.pgp;
 
 import org.spongycastle.bcpg.SignatureSubpacket;
@@ -15,6 +32,7 @@ import org.sufficientlysecure.keychain.util.Log;
 
 import java.io.IOException;
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.Date;
 
 /** OpenKeychain wrapper around PGPSignature objects.
@@ -55,12 +73,41 @@ public class WrappedSignature {
         return mSig.getCreationTime();
     }
 
+    public ArrayList<WrappedSignature> getEmbeddedSignatures() {
+        ArrayList<WrappedSignature> sigs = new ArrayList<WrappedSignature>();
+        if (!mSig.hasSubpackets()) {
+            return sigs;
+        }
+        try {
+            PGPSignatureList list;
+            if (mSig.getHashedSubPackets() != null) {
+                list = mSig.getHashedSubPackets().getEmbeddedSignatures();
+                for (int i = 0; i < list.size(); i++) {
+                    sigs.add(new WrappedSignature(list.get(i)));
+                }
+            }
+            if (mSig.getUnhashedSubPackets() != null) {
+                list = mSig.getUnhashedSubPackets().getEmbeddedSignatures();
+                for (int i = 0; i < list.size(); i++) {
+                    sigs.add(new WrappedSignature(list.get(i)));
+                }
+            }
+        } catch (PGPException e) {
+            // no matter
+            Log.e(Constants.TAG, "exception reading embedded signatures", e);
+        } catch (IOException e) {
+            // no matter
+            Log.e(Constants.TAG, "exception reading embedded signatures", e);
+        }
+        return sigs;
+    }
+
     public byte[] getEncoded() throws IOException {
         return mSig.getEncoded();
     }
 
     public boolean isRevocation() {
-        return mSig.getHashedSubPackets().hasSubpacket(SignatureSubpacketTags.REVOCATION_REASON);
+        return mSig.getSignatureType() == PGPSignature.CERTIFICATION_REVOCATION;
     }
 
     public boolean isPrimaryUserId() {
@@ -71,6 +118,9 @@ public class WrappedSignature {
         if(!isRevocation()) {
             throw new PgpGeneralException("Not a revocation signature.");
         }
+        if (mSig.getHashedSubPackets() == null) {
+            return null;
+        }
         SignatureSubpacket p = mSig.getHashedSubPackets().getSubpacket(
                 SignatureSubpacketTags.REVOCATION_REASON);
         // For some reason, this is missing in SignatureSubpacketInputStream:146
@@ -80,7 +130,7 @@ public class WrappedSignature {
         return ((RevocationReason) p).getRevocationDescription();
     }
 
-    public void init(WrappedPublicKey key) throws PgpGeneralException {
+    public void init(CanonicalizedPublicKey key) throws PgpGeneralException {
         init(key.getPublicKey());
     }
 
@@ -158,7 +208,7 @@ public class WrappedSignature {
     public boolean verifySignature(UncachedPublicKey key, String uid) throws PgpGeneralException {
         return verifySignature(key.getPublicKey(), uid);
     }
-    public boolean verifySignature(WrappedPublicKey key, String uid) throws PgpGeneralException {
+    public boolean verifySignature(CanonicalizedPublicKey key, String uid) throws PgpGeneralException {
         return verifySignature(key.getPublicKey(), uid);
     }
 
@@ -179,7 +229,7 @@ public class WrappedSignature {
     }
 
     public boolean isLocal() {
-        if (!mSig.hasSubpackets()
+        if (mSig.getHashedSubPackets() == null
                 || !mSig.getHashedSubPackets().hasSubpacket(SignatureSubpacketTags.EXPORTABLE)) {
             return false;
         }

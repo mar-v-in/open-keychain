@@ -22,6 +22,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -46,24 +47,20 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AbsListView.MultiChoiceModeListener;
 import android.widget.AdapterView;
-import android.widget.FrameLayout;
-import android.widget.ImageButton;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Button;
-
-import com.devspark.appmsg.AppMsg;
 
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.helper.ExportHelper;
 import org.sufficientlysecure.keychain.pgp.KeyRing;
-import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRingData;
 import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRings;
 import org.sufficientlysecure.keychain.ui.dialog.DeleteKeyDialogFragment;
 import org.sufficientlysecure.keychain.util.Highlighter;
 import org.sufficientlysecure.keychain.util.Log;
+import org.sufficientlysecure.keychain.util.Notify;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -88,6 +85,7 @@ public class KeyListFragment extends LoaderFragment
     private Button mButtonEmptyCreate;
     private Button mButtonEmptyImport;
 
+    public static final int REQUEST_CODE_CREATE_OR_IMPORT_KEY = 0x00007012;
 
     /**
      * Load custom layout with StickyListView from library
@@ -106,11 +104,8 @@ public class KeyListFragment extends LoaderFragment
 
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(getActivity(), EditKeyActivity.class);
-                intent.setAction(EditKeyActivity.ACTION_CREATE_KEY);
-                intent.putExtra(EditKeyActivity.EXTRA_GENERATE_DEFAULT_KEYS, true);
-                intent.putExtra(EditKeyActivity.EXTRA_USER_IDS, ""); // show user id view
-                startActivityForResult(intent, 0);
+                Intent intent = new Intent(getActivity(), CreateKeyActivity.class);
+                startActivityForResult(intent, REQUEST_CODE_CREATE_OR_IMPORT_KEY);
             }
         });
         mButtonEmptyImport = (Button) view.findViewById(R.id.key_list_empty_button_import);
@@ -119,8 +114,8 @@ public class KeyListFragment extends LoaderFragment
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(getActivity(), ImportKeysActivity.class);
-                intent.setAction(ImportKeysActivity.ACTION_IMPORT_KEY_FROM_FILE);
-                startActivityForResult(intent, 0);
+                intent.setAction(ImportKeysActivity.ACTION_IMPORT_KEY_FROM_FILE_AND_RETURN);
+                startActivityForResult(intent, REQUEST_CODE_CREATE_OR_IMPORT_KEY);
             }
         });
 
@@ -181,8 +176,8 @@ public class KeyListFragment extends LoaderFragment
                         case R.id.menu_key_list_multi_export: {
                             ids = mAdapter.getCurrentSelectedMasterKeyIds();
                             ExportHelper mExportHelper = new ExportHelper((ActionBarActivity) getActivity());
-                            mExportHelper.showExportKeysDialog(
-                                    ids, Constants.Path.APP_DIR_FILE, mAdapter.isAnySecretSelected());
+                            mExportHelper.showExportKeysDialog(ids, Constants.Path.APP_DIR_FILE,
+                                    mAdapter.isAnySecretSelected());
                             break;
                         }
                         case R.id.menu_key_list_multi_select_all: {
@@ -341,8 +336,8 @@ public class KeyListFragment extends LoaderFragment
     public void showDeleteKeyDialog(final ActionMode mode, long[] masterKeyIds, boolean hasSecret) {
         // Can only work on singular secret keys
         if(hasSecret && masterKeyIds.length > 1) {
-            AppMsg.makeText(getActivity(), R.string.secret_cannot_multiple,
-                    AppMsg.STYLE_ALERT).show();
+            Notify.showNotify(getActivity(), R.string.secret_cannot_multiple,
+                    Notify.Style.ERROR);
             return;
         }
 
@@ -439,11 +434,7 @@ public class KeyListFragment extends LoaderFragment
         private class ItemViewHolder {
             TextView mMainUserId;
             TextView mMainUserIdRest;
-            View mStatusDivider;
-            FrameLayout mStatusLayout;
-            ImageButton mButton;
-            TextView mRevoked;
-            ImageView mVerified;
+            ImageView mStatus;
         }
 
         @Override
@@ -452,11 +443,7 @@ public class KeyListFragment extends LoaderFragment
             ItemViewHolder holder = new ItemViewHolder();
             holder.mMainUserId = (TextView) view.findViewById(R.id.mainUserId);
             holder.mMainUserIdRest = (TextView) view.findViewById(R.id.mainUserIdRest);
-            holder.mStatusDivider = (View) view.findViewById(R.id.status_divider);
-            holder.mStatusLayout = (FrameLayout) view.findViewById(R.id.status_layout);
-            holder.mButton = (ImageButton) view.findViewById(R.id.edit);
-            holder.mRevoked = (TextView) view.findViewById(R.id.revoked);
-            holder.mVerified = (ImageView) view.findViewById(R.id.verified);
+            holder.mStatus = (ImageView) view.findViewById(R.id.status_image);
             view.setTag(holder);
             return view;
         }
@@ -488,44 +475,40 @@ public class KeyListFragment extends LoaderFragment
                 }
             }
 
-            { // set edit button and revoked info, specific by key type
+            { // set edit button and status, specific by key type
 
-                if (cursor.getInt(KeyListFragment.INDEX_HAS_ANY_SECRET) != 0) {
-                    // this is a secret key - show the edit mButton
-                    h.mStatusDivider.setVisibility(View.VISIBLE);
-                    h.mStatusLayout.setVisibility(View.VISIBLE);
-                    h.mRevoked.setVisibility(View.GONE);
-                    h.mVerified.setVisibility(View.GONE);
-                    h.mButton.setVisibility(View.VISIBLE);
+                boolean isRevoked = cursor.getInt(INDEX_IS_REVOKED) > 0;
+                boolean isExpired = !cursor.isNull(INDEX_EXPIRY)
+                        && new Date(cursor.getLong(INDEX_EXPIRY)*1000).before(new Date());
+                boolean isVerified = cursor.getInt(INDEX_VERIFIED) > 0;
 
-                    final long id = cursor.getLong(INDEX_MASTER_KEY_ID);
-                    h.mButton.setOnClickListener(new OnClickListener() {
-                        public void onClick(View view) {
-                            Intent editIntent = new Intent(getActivity(), EditKeyActivity.class);
-                            editIntent.setData(KeyRingData.buildSecretKeyRingUri(Long.toString(id)));
-                            editIntent.setAction(EditKeyActivity.ACTION_EDIT_KEY);
-                            startActivityForResult(editIntent, 0);
-                        }
-                    });
-                } else {
-                    // this is a public key - hide the edit mButton, show if it's revoked
-                    h.mStatusDivider.setVisibility(View.GONE);
-                    h.mButton.setVisibility(View.GONE);
-
-                    boolean isRevoked = cursor.getInt(INDEX_IS_REVOKED) > 0;
-                    boolean isExpired = !cursor.isNull(INDEX_EXPIRY)
-                            && new Date(cursor.getLong(INDEX_EXPIRY)*1000).before(new Date());
-                    if(isRevoked || isExpired) {
-                        h.mStatusLayout.setVisibility(View.VISIBLE);
-                        h.mRevoked.setVisibility(View.VISIBLE);
-                        h.mVerified.setVisibility(View.GONE);
-                        h.mRevoked.setText(isRevoked ? R.string.revoked : R.string.expired);
+                // Note: order is important!
+                if (isRevoked) {
+                    h.mStatus.setImageDrawable(
+                            getResources().getDrawable(R.drawable.status_signature_revoked_cutout));
+                    h.mStatus.setColorFilter(getResources().getColor(R.color.android_red_dark),
+                            PorterDuff.Mode.SRC_ATOP);
+                    h.mStatus.setVisibility(View.VISIBLE);
+                } else if (isExpired) {
+                    h.mStatus.setImageDrawable(
+                            getResources().getDrawable(R.drawable.status_signature_expired_cutout));
+                    h.mStatus.setColorFilter(getResources().getColor(R.color.android_orange_dark),
+                            PorterDuff.Mode.SRC_ATOP);
+                    h.mStatus.setVisibility(View.VISIBLE);
+                } else if (isVerified) {
+                    if (cursor.getInt(KeyListFragment.INDEX_HAS_ANY_SECRET) != 0) {
+                        // this is a secret key
+                        h.mStatus.setVisibility(View.GONE);
                     } else {
-                        boolean isVerified = cursor.getInt(INDEX_VERIFIED) > 0;
-                        h.mStatusLayout.setVisibility(isVerified ? View.VISIBLE : View.GONE);
-                        h.mRevoked.setVisibility(View.GONE);
-                        h.mVerified.setVisibility(isVerified ? View.VISIBLE : View.GONE);
+                        // this is a public key - show if it's verified
+                        h.mStatus.setImageDrawable(
+                                getResources().getDrawable(R.drawable.status_signature_verified_cutout));
+                        h.mStatus.setColorFilter(getResources().getColor(R.color.android_green_dark),
+                                PorterDuff.Mode.SRC_ATOP);
+                        h.mStatus.setVisibility(View.VISIBLE);
                     }
+                } else {
+                    h.mStatus.setVisibility(View.GONE);
                 }
             }
 

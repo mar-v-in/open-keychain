@@ -21,6 +21,7 @@ package org.sufficientlysecure.keychain.helper;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.spongycastle.bcpg.CompressionAlgorithmTags;
 import org.spongycastle.bcpg.HashAlgorithmTags;
 import org.spongycastle.openpgp.PGPEncryptedData;
 import org.sufficientlysecure.keychain.Constants;
@@ -99,7 +100,7 @@ public class Preferences {
 
     public int getDefaultMessageCompression() {
         return mSharedPreferences.getInt(Constants.Pref.DEFAULT_MESSAGE_COMPRESSION,
-                Constants.choice.compression.zlib);
+                CompressionAlgorithmTags.ZLIB);
     }
 
     public void setDefaultMessageCompression(int value) {
@@ -110,7 +111,7 @@ public class Preferences {
 
     public int getDefaultFileCompression() {
         return mSharedPreferences.getInt(Constants.Pref.DEFAULT_FILE_COMPRESSION,
-                Constants.choice.compression.none);
+                CompressionAlgorithmTags.UNCOMPRESSED);
     }
 
     public void setDefaultFileCompression(int value) {
@@ -136,6 +137,16 @@ public class Preferences {
     public void setForceV3Signatures(boolean value) {
         SharedPreferences.Editor editor = mSharedPreferences.edit();
         editor.putBoolean(Constants.Pref.FORCE_V3_SIGNATURES, value);
+        editor.commit();
+    }
+
+    public boolean isFirstTime() {
+        return mSharedPreferences.getBoolean(Constants.Pref.FIRST_TIME, true);
+    }
+
+    public void setFirstTime(boolean value) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean(Constants.Pref.FIRST_TIME, value);
         editor.commit();
     }
 
@@ -170,7 +181,8 @@ public class Preferences {
         editor.commit();
     }
 
-    public void updateKeyServers() {
+    public void updatePreferences() {
+        // migrate keyserver to hkps
         if (mSharedPreferences.getInt(Constants.Pref.KEY_SERVERS_DEFAULT_VERSION, 0) !=
                 Constants.Defaults.KEY_SERVERS_VERSION) {
             String[] servers = getKeyServers();
@@ -186,5 +198,20 @@ public class Preferences {
                     .putInt(Constants.Pref.KEY_SERVERS_DEFAULT_VERSION, Constants.Defaults.KEY_SERVERS_VERSION)
                     .commit();
         }
+
+        // migrate old uncompressed constant to new one
+        if (mSharedPreferences.getInt(Constants.Pref.DEFAULT_FILE_COMPRESSION, 0) == 0x21070001) {
+            setDefaultFileCompression(CompressionAlgorithmTags.UNCOMPRESSED);
+        }
+    }
+
+    public void setConcealPgpApplication(boolean conceal) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean(Constants.Pref.CONCEAL_PGP_APPLICATION, conceal);
+        editor.commit();
+    }
+
+    public boolean getConcealPgpApplication() {
+        return mSharedPreferences.getBoolean(Constants.Pref.CONCEAL_PGP_APPLICATION, false);
     }
 }

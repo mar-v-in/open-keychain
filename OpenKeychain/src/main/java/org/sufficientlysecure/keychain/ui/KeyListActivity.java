@@ -22,14 +22,14 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.devspark.appmsg.AppMsg;
-
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.helper.ExportHelper;
+import org.sufficientlysecure.keychain.helper.Preferences;
 import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.provider.KeychainDatabase;
 import org.sufficientlysecure.keychain.util.Log;
+import org.sufficientlysecure.keychain.util.Notify;
 
 import java.io.IOException;
 
@@ -40,6 +40,14 @@ public class KeyListActivity extends DrawerActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // if this is the first time show first time activity
+        Preferences prefs = Preferences.getPreferences(this);
+        if (prefs.isFirstTime()) {
+            startActivity(new Intent(this, FirstTimeActivity.class));
+            finish();
+            return;
+        }
 
         mExportHelper = new ExportHelper(this);
 
@@ -54,9 +62,10 @@ public class KeyListActivity extends DrawerActivity {
         super.onCreateOptionsMenu(menu);
         getMenuInflater().inflate(R.menu.key_list, menu);
 
-        if(Constants.DEBUG) {
+        if (Constants.DEBUG) {
             menu.findItem(R.id.menu_key_list_debug_read).setVisible(true);
             menu.findItem(R.id.menu_key_list_debug_write).setVisible(true);
+            menu.findItem(R.id.menu_key_list_debug_first_time).setVisible(true);
         }
 
         return true;
@@ -65,7 +74,7 @@ public class KeyListActivity extends DrawerActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_key_list_import:
+            case R.id.menu_key_list_add:
                 importKeys();
                 return true;
 
@@ -73,8 +82,10 @@ public class KeyListActivity extends DrawerActivity {
                 createKey();
                 return true;
 
-            case R.id.menu_key_list_create_expert:
-                createKeyExpert();
+            case R.id.menu_key_list_import_existing_key:
+                Intent intentImportExisting = new Intent(this, ImportKeysActivity.class);
+                intentImportExisting.setAction(ImportKeysActivity.ACTION_IMPORT_KEY_FROM_FILE_AND_RETURN);
+                startActivityForResult(intentImportExisting, 0);
                 return true;
 
             case R.id.menu_key_list_export:
@@ -83,23 +94,31 @@ public class KeyListActivity extends DrawerActivity {
 
             case R.id.menu_key_list_debug_read:
                 try {
-                    KeychainDatabase.debugRead(this);
-                    AppMsg.makeText(this, "Restored from backup", AppMsg.STYLE_CONFIRM).show();
+                    KeychainDatabase.debugBackup(this, true);
+                    Notify.showNotify(this, "Restored debug_backup.db", Notify.Style.INFO);
                     getContentResolver().notifyChange(KeychainContract.KeyRings.CONTENT_URI, null);
-                } catch(IOException e) {
+                } catch (IOException e) {
                     Log.e(Constants.TAG, "IO Error", e);
-                    AppMsg.makeText(this, "IO Error: " + e.getMessage(), AppMsg.STYLE_ALERT).show();
+                    Notify.showNotify(this, "IO Error " + e.getMessage(), Notify.Style.ERROR);
                 }
                 return true;
 
             case R.id.menu_key_list_debug_write:
                 try {
-                    KeychainDatabase.debugWrite(this);
-                    AppMsg.makeText(this, "Backup successful", AppMsg.STYLE_CONFIRM).show();
+                    KeychainDatabase.debugBackup(this, false);
+                    Notify.showNotify(this, "Backup to debug_backup.db completed", Notify.Style.INFO);
                 } catch(IOException e) {
                     Log.e(Constants.TAG, "IO Error", e);
-                    AppMsg.makeText(this, "IO Error: " + e.getMessage(), AppMsg.STYLE_ALERT).show();
+                    Notify.showNotify(this, "IO Error: " + e.getMessage(), Notify.Style.ERROR);
                 }
+                return true;
+
+            case R.id.menu_key_list_debug_first_time:
+                Preferences prefs = Preferences.getPreferences(this);
+                prefs.setFirstTime(true);
+                Intent intent = new Intent(this, FirstTimeActivity.class);
+                startActivity(intent);
+                finish();
                 return true;
 
             default:
@@ -113,17 +132,8 @@ public class KeyListActivity extends DrawerActivity {
     }
 
     private void createKey() {
-        Intent intent = new Intent(this, WizardActivity.class);
-//        intent.setAction(EditKeyActivity.ACTION_CREATE_KEY);
-//        intent.putExtra(EditKeyActivity.EXTRA_GENERATE_DEFAULT_KEYS, true);
-//        intent.putExtra(EditKeyActivity.EXTRA_USER_IDS, ""); // show user id view
-        startActivityForResult(intent, 0);
-    }
-
-    private void createKeyExpert() {
-        Intent intent = new Intent(this, EditKeyActivity.class);
-        intent.setAction(EditKeyActivity.ACTION_CREATE_KEY);
-        startActivityForResult(intent, 0);
+        Intent intent = new Intent(this, CreateKeyActivity.class);
+        startActivity(intent);
     }
 
 }

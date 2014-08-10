@@ -20,6 +20,7 @@ package org.sufficientlysecure.keychain.ui.adapter;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
+import android.graphics.Typeface;
 import android.support.v4.widget.CursorAdapter;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
@@ -32,28 +33,18 @@ import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.helper.OtherHelper;
 import org.sufficientlysecure.keychain.pgp.PgpKeyHelper;
 import org.sufficientlysecure.keychain.provider.KeychainContract.Keys;
+import org.sufficientlysecure.keychain.service.SaveKeyringParcel;
 
 import java.util.Date;
 
 public class SubkeysAdapter extends CursorAdapter {
     private LayoutInflater mInflater;
-
-    private int mIndexKeyId;
-    private int mIndexAlgorithm;
-    private int mIndexKeySize;
-    private int mIndexRank;
-    private int mIndexCanCertify;
-    private int mIndexCanEncrypt;
-    private int mIndexCanSign;
-    private int mIndexHasSecret;
-    private int mIndexRevokedKey;
-    private int mIndexExpiry;
+    private SaveKeyringParcel mSaveKeyringParcel;
 
     private boolean hasAnySecret;
-
     private ColorStateList mDefaultTextColor;
 
-    public static final String[] KEYS_PROJECTION = new String[] {
+    public static final String[] SUBKEYS_PROJECTION = new String[]{
             Keys._ID,
             Keys.KEY_ID,
             Keys.RANK,
@@ -68,24 +59,57 @@ public class SubkeysAdapter extends CursorAdapter {
             Keys.EXPIRY,
             Keys.FINGERPRINT
     };
+    private static final int INDEX_ID = 0;
+    private static final int INDEX_KEY_ID = 1;
+    private static final int INDEX_RANK = 2;
+    private static final int INDEX_ALGORITHM = 3;
+    private static final int INDEX_KEY_SIZE = 4;
+    private static final int INDEX_HAS_SECRET = 5;
+    private static final int INDEX_CAN_CERTIFY = 6;
+    private static final int INDEX_CAN_ENCRYPT = 7;
+    private static final int INDEX_CAN_SIGN = 8;
+    private static final int INDEX_IS_REVOKED = 9;
+    private static final int INDEX_CREATION = 10;
+    private static final int INDEX_EXPIRY = 11;
+    private static final int INDEX_FINGERPRINT = 12;
 
-    public SubkeysAdapter(Context context, Cursor c, int flags) {
+    public SubkeysAdapter(Context context, Cursor c, int flags,
+                          SaveKeyringParcel saveKeyringParcel) {
         super(context, c, flags);
 
         mInflater = LayoutInflater.from(context);
+        mSaveKeyringParcel = saveKeyringParcel;
+    }
 
-        initIndex(c);
+    public SubkeysAdapter(Context context, Cursor c, int flags) {
+        this(context, c, flags, null);
+    }
+
+    public long getKeyId(int position) {
+        mCursor.moveToPosition(position);
+        return mCursor.getLong(INDEX_KEY_ID);
+    }
+
+    public long getCreationDate(int position) {
+        mCursor.moveToPosition(position);
+        return mCursor.getLong(INDEX_CREATION);
+    }
+
+    public Long getExpiryDate(int position) {
+        mCursor.moveToPosition(position);
+        if (mCursor.isNull(INDEX_EXPIRY)) {
+            return null;
+        } else {
+            return mCursor.getLong(INDEX_EXPIRY);
+        }
     }
 
     @Override
     public Cursor swapCursor(Cursor newCursor) {
-        initIndex(newCursor);
-
         hasAnySecret = false;
-        if (newCursor != null) {
-            newCursor.moveToFirst();
+        if (newCursor != null && newCursor.moveToFirst()) {
             do {
-                if (newCursor.getInt(mIndexHasSecret) != 0) {
+                if (newCursor.getInt(INDEX_HAS_SECRET) != 0) {
                     hasAnySecret = true;
                     break;
                 }
@@ -95,102 +119,121 @@ public class SubkeysAdapter extends CursorAdapter {
         return super.swapCursor(newCursor);
     }
 
-    /**
-     * Get column indexes for performance reasons just once in constructor and swapCursor. For a
-     * performance comparison see http://stackoverflow.com/a/17999582
-     *
-     * @param cursor
-     */
-    private void initIndex(Cursor cursor) {
-        if (cursor != null) {
-            mIndexKeyId = cursor.getColumnIndexOrThrow(Keys.KEY_ID);
-            mIndexAlgorithm = cursor.getColumnIndexOrThrow(Keys.ALGORITHM);
-            mIndexKeySize = cursor.getColumnIndexOrThrow(Keys.KEY_SIZE);
-            mIndexRank = cursor.getColumnIndexOrThrow(Keys.RANK);
-            mIndexCanCertify = cursor.getColumnIndexOrThrow(Keys.CAN_CERTIFY);
-            mIndexCanEncrypt = cursor.getColumnIndexOrThrow(Keys.CAN_ENCRYPT);
-            mIndexCanSign = cursor.getColumnIndexOrThrow(Keys.CAN_SIGN);
-            mIndexHasSecret = cursor.getColumnIndexOrThrow(Keys.HAS_SECRET);
-            mIndexRevokedKey = cursor.getColumnIndexOrThrow(Keys.IS_REVOKED);
-            mIndexExpiry = cursor.getColumnIndexOrThrow(Keys.EXPIRY);
-        }
-    }
-
     @Override
     public void bindView(View view, Context context, Cursor cursor) {
-        TextView keyId = (TextView) view.findViewById(R.id.keyId);
-        TextView keyDetails = (TextView) view.findViewById(R.id.keyDetails);
-        TextView keyExpiry = (TextView) view.findViewById(R.id.keyExpiry);
-        ImageView masterKeyIcon = (ImageView) view.findViewById(R.id.ic_masterKey);
-        ImageView certifyIcon = (ImageView) view.findViewById(R.id.ic_certifyKey);
-        ImageView encryptIcon = (ImageView) view.findViewById(R.id.ic_encryptKey);
-        ImageView signIcon = (ImageView) view.findViewById(R.id.ic_signKey);
-        ImageView revokedKeyIcon = (ImageView) view.findViewById(R.id.ic_revokedKey);
+        TextView vKeyId = (TextView) view.findViewById(R.id.subkey_item_key_id);
+        TextView vKeyDetails = (TextView) view.findViewById(R.id.subkey_item_details);
+        TextView vKeyExpiry = (TextView) view.findViewById(R.id.subkey_item_expiry);
+        ImageView vCertifyIcon = (ImageView) view.findViewById(R.id.subkey_item_ic_certify);
+        ImageView vEncryptIcon = (ImageView) view.findViewById(R.id.subkey_item_ic_encrypt);
+        ImageView vSignIcon = (ImageView) view.findViewById(R.id.subkey_item_ic_sign);
+        ImageView vRevokedIcon = (ImageView) view.findViewById(R.id.subkey_item_ic_revoked);
+        ImageView vEditImage = (ImageView) view.findViewById(R.id.subkey_item_edit_image);
 
-        String keyIdStr = PgpKeyHelper.convertKeyIdToHex(cursor.getLong(mIndexKeyId));
+        // not used:
+        ImageView deleteImage = (ImageView) view.findViewById(R.id.subkey_item_delete_button);
+        deleteImage.setVisibility(View.GONE);
+
+        long keyId = cursor.getLong(INDEX_KEY_ID);
+        String keyIdStr = PgpKeyHelper.convertKeyIdToHex(keyId);
         String algorithmStr = PgpKeyHelper.getAlgorithmInfo(
                 context,
-                cursor.getInt(mIndexAlgorithm),
-                cursor.getInt(mIndexKeySize)
+                cursor.getInt(INDEX_ALGORITHM),
+                cursor.getInt(INDEX_KEY_SIZE)
         );
 
-        keyId.setText(keyIdStr);
+        vKeyId.setText(keyIdStr);
         // may be set with additional "stripped" later on
-        if (hasAnySecret && cursor.getInt(mIndexHasSecret) == 0) {
-            keyDetails.setText(algorithmStr + ", " +
+        if (hasAnySecret && cursor.getInt(INDEX_HAS_SECRET) == 0) {
+            vKeyDetails.setText(algorithmStr + ", " +
                     context.getString(R.string.key_stripped));
         } else {
-            keyDetails.setText(algorithmStr);
+            vKeyDetails.setText(algorithmStr);
+        }
+
+        boolean isMasterKey = cursor.getInt(INDEX_RANK) == 0;
+        if (isMasterKey) {
+            vKeyId.setTypeface(null, Typeface.BOLD);
+        } else {
+            vKeyId.setTypeface(null, Typeface.NORMAL);
         }
 
         // Set icons according to properties
-        masterKeyIcon.setVisibility(cursor.getInt(mIndexRank) == 0 ? View.VISIBLE : View.INVISIBLE);
-        certifyIcon.setVisibility(cursor.getInt(mIndexCanCertify) != 0 ? View.VISIBLE : View.GONE);
-        encryptIcon.setVisibility(cursor.getInt(mIndexCanEncrypt) != 0 ? View.VISIBLE : View.GONE);
-        signIcon.setVisibility(cursor.getInt(mIndexCanSign) != 0 ? View.VISIBLE : View.GONE);
+        vCertifyIcon.setVisibility(cursor.getInt(INDEX_CAN_CERTIFY) != 0 ? View.VISIBLE : View.GONE);
+        vEncryptIcon.setVisibility(cursor.getInt(INDEX_CAN_ENCRYPT) != 0 ? View.VISIBLE : View.GONE);
+        vSignIcon.setVisibility(cursor.getInt(INDEX_CAN_SIGN) != 0 ? View.VISIBLE : View.GONE);
+        // TODO: missing icon for authenticate
 
-        boolean valid = true;
-        if (cursor.getInt(mIndexRevokedKey) > 0) {
-            revokedKeyIcon.setVisibility(View.VISIBLE);
+        boolean isRevoked = cursor.getInt(INDEX_IS_REVOKED) > 0;
 
-            valid = false;
-        } else {
-            keyId.setTextColor(mDefaultTextColor);
-            keyDetails.setTextColor(mDefaultTextColor);
-            keyExpiry.setTextColor(mDefaultTextColor);
-
-            revokedKeyIcon.setVisibility(View.GONE);
+        Date expiryDate = null;
+        if (!cursor.isNull(INDEX_EXPIRY)) {
+            expiryDate = new Date(cursor.getLong(INDEX_EXPIRY) * 1000);
         }
 
-        if (!cursor.isNull(mIndexExpiry)) {
-            Date expiryDate = new Date(cursor.getLong(mIndexExpiry) * 1000);
+        // for edit key
+        if (mSaveKeyringParcel != null) {
+            boolean revokeThisSubkey = (mSaveKeyringParcel.mRevokeSubKeys.contains(keyId));
 
-            valid = valid && expiryDate.after(new Date());
-            keyExpiry.setText(
-                    context.getString(R.string.label_expiry) + ": " +
-                    DateFormat.getDateFormat(context).format(expiryDate));
+            if (revokeThisSubkey) {
+                if (!isRevoked) {
+                    isRevoked = true;
+                }
+            }
+
+            SaveKeyringParcel.SubkeyChange subkeyChange = mSaveKeyringParcel.getSubkeyChange(keyId);
+            if (subkeyChange != null) {
+                if (subkeyChange.mExpiry == null) {
+                    expiryDate = null;
+                } else {
+                    expiryDate = new Date(subkeyChange.mExpiry * 1000);
+                }
+            }
+
+            vEditImage.setVisibility(View.VISIBLE);
         } else {
-            keyExpiry.setText(
-                    context.getString(R.string.label_expiry) + ": " +
-                    context.getString(R.string.none));
+            vEditImage.setVisibility(View.GONE);
+        }
+
+        boolean isExpired;
+        if (expiryDate != null) {
+            isExpired = expiryDate.before(new Date());
+
+            vKeyExpiry.setText(context.getString(R.string.label_expiry) + ": "
+                    + DateFormat.getDateFormat(context).format(expiryDate));
+        } else {
+            isExpired = false;
+
+            vKeyExpiry.setText(context.getString(R.string.label_expiry) + ": " + context.getString(R.string.none));
+        }
+
+        if (isRevoked) {
+            vRevokedIcon.setVisibility(View.VISIBLE);
+        } else {
+            vKeyId.setTextColor(mDefaultTextColor);
+            vKeyDetails.setTextColor(mDefaultTextColor);
+            vKeyExpiry.setTextColor(mDefaultTextColor);
+
+            vRevokedIcon.setVisibility(View.GONE);
         }
 
         // if key is expired or revoked, strike through text
-        if (!valid) {
-            keyId.setText(OtherHelper.strikeOutText(keyId.getText()));
-            keyDetails.setText(OtherHelper.strikeOutText(keyDetails.getText()));
-            keyExpiry.setText(OtherHelper.strikeOutText(keyExpiry.getText()));
+        boolean isInvalid = isRevoked || isExpired;
+        if (isInvalid) {
+            vKeyId.setText(OtherHelper.strikeOutText(vKeyId.getText()));
+            vKeyDetails.setText(OtherHelper.strikeOutText(vKeyDetails.getText()));
+            vKeyExpiry.setText(OtherHelper.strikeOutText(vKeyExpiry.getText()));
         }
-        keyId.setEnabled(valid);
-        keyDetails.setEnabled(valid);
-        keyExpiry.setEnabled(valid);
+        vKeyId.setEnabled(!isInvalid);
+        vKeyDetails.setEnabled(!isInvalid);
+        vKeyExpiry.setEnabled(!isInvalid);
     }
 
     @Override
     public View newView(Context context, Cursor cursor, ViewGroup parent) {
-        View view = mInflater.inflate(R.layout.view_key_keys_item, null);
+        View view = mInflater.inflate(R.layout.view_key_subkey_item, null);
         if (mDefaultTextColor == null) {
-            TextView keyId = (TextView) view.findViewById(R.id.keyId);
+            TextView keyId = (TextView) view.findViewById(R.id.subkey_item_key_id);
             mDefaultTextColor = keyId.getTextColors();
         }
         return view;
@@ -199,13 +242,21 @@ public class SubkeysAdapter extends CursorAdapter {
     // Disable selection of items, http://stackoverflow.com/a/4075045
     @Override
     public boolean areAllItemsEnabled() {
-        return false;
+        if (mSaveKeyringParcel == null) {
+            return false;
+        } else {
+            return super.areAllItemsEnabled();
+        }
     }
 
     // Disable selection of items, http://stackoverflow.com/a/4075045
     @Override
     public boolean isEnabled(int position) {
-        return false;
+        if (mSaveKeyringParcel == null) {
+            return false;
+        } else {
+            return super.isEnabled(position);
+        }
     }
 
 }

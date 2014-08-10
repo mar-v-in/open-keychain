@@ -5,6 +5,8 @@ For a more detailed description and installation instructions go to http://www.o
 
 ### Travis CI Build Status
 
+Currently, some tests could fail even when everything is okay!
+
 [![Build Status](https://travis-ci.org/open-keychain/open-keychain.png?branch=master)](https://travis-ci.org/open-keychain/open-keychain)
 
 ## How to help the project?
@@ -40,6 +42,11 @@ Select everything for the newest SDK Platform (API-Level 19)
 5. Execute ``./gradlew build``
 6. You can install the app with ``adb install -r OpenKeychain/build/outputs/apk/OpenKeychain-debug-unaligned.apk``
 
+### Run Tests
+1. Use OpenJDK instead of Oracle JDK
+2. Execute ``./prepare-tests.sh``
+3. Execute ``./gradlew build``
+
 ### Build API Demo with Gradle
 
 1. Follow 1-4 from above
@@ -48,13 +55,10 @@ Select everything for the newest SDK Platform (API-Level 19)
 
 ### Development with Android Studio
 
-I am using the newest [Android Studio](http://developer.android.com/sdk/installing/studio.html) for development. Development with Eclipse is currently not possible because I am using the new [project structure](http://developer.android.com/sdk/installing/studio-tips.html).
+We are using the newest [Android Studio](http://developer.android.com/sdk/installing/studio.html) for development. Development with Eclipse is currently not possible because we are using the new [project structure](http://developer.android.com/sdk/installing/studio-tips.html).
 
-1. Clone the project from github
-2. From Android Studio: File -> Import Project ->  ...
-  * Select the cloned top folder if you want to develop on the main project
-  * Select the "OpenKeychain-API" folder if you want to develop on the API example
-3. Import project from external model -> choose Gradle
+1. Clone the project from Github
+2. From Android Studio: File -> Import Project ->  Select the cloned top folder
 
 ## OpenKeychain's API
 
@@ -129,6 +133,10 @@ When changing build files or dependencies, respect the following requirements:
 
 * https://www.timroes.de/2013/09/12/speed-up-gradle/
 * Disable Lint checking if it is enabled in build.gradle
+
+### Error:Configuration with name 'default' not found.
+
+Gradle project dependencies are missing. Do a ``git submodule init && git submodule update``
 
 ### Translations
 
@@ -214,14 +222,6 @@ Some parts and some libraries are Apache License v2, MIT X11 License (see below)
 * StickyListHeaders  
   https://github.com/emilsjolander/StickyListHeaders  
   Apache License v2
-  
-* Android-Bootstrap  
-  https://github.com/Bearded-Hen/Android-Bootstrap  
-  MIT License
-
-* Android AppMsg  
-  https://github.com/johnkil/Android-AppMsg  
-  Apache License v2
 
 ### Images
 * icon.svg  
@@ -233,5 +233,8 @@ Some parts and some libraries are Apache License v2, MIT X11 License (see below)
 * QR Code Actionbar icon  
   https://github.com/openintents/openintents/blob/master/extensions/qrcode_ext/icons/ic_menu_qr_code/ic_menu_qr_code_holo_light/ic_menu_qr_code.svg
 
+* Key status icons by the ModernPGP working group  
+  https://github.com/ModernPGP
+  
 * Purple color scheme  
   http://android-holo-colors.com/

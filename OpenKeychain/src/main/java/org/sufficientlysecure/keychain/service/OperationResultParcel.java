@@ -1,14 +1,44 @@
+/*
+ * Copyright (C) 2014 Dominik Schürmann <dominik@dominikschuermann.de>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package org.sufficientlysecure.keychain.service;
 
+import android.app.Activity;
+import android.content.Intent;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.view.View;
+
+import com.github.johnpersano.supertoasts.SuperCardToast;
+import com.github.johnpersano.supertoasts.SuperToast;
+import com.github.johnpersano.supertoasts.util.OnClickWrapper;
+import com.github.johnpersano.supertoasts.util.Style;
 
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
+import org.sufficientlysecure.keychain.ui.LogDisplayActivity;
+import org.sufficientlysecure.keychain.ui.LogDisplayFragment;
 import org.sufficientlysecure.keychain.util.IterableIterator;
 import org.sufficientlysecure.keychain.util.Log;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 /** Represent the result of an operation.
  *
@@ -21,6 +51,9 @@ import java.util.ArrayList;
  *
  */
 public class OperationResultParcel implements Parcelable {
+
+    public static final String EXTRA_RESULT = "operation_result";
+
     /** Holds the overall result, the number specifying varying degrees of success. The first bit
      * is 0 on overall success, 1 on overall failure. All other bits may be used for more specific
      * conditions. */
@@ -67,9 +100,7 @@ public class OperationResultParcel implements Parcelable {
             mType = type;
             mParameters = parameters;
             mIndent = indent;
-        }
-        public LogEntryParcel(LogLevel level, LogType type, Object... parameters) {
-            this(level, type, 0, parameters);
+            Log.v(Constants.TAG, "log: " + this.toString());
         }
 
         public LogEntryParcel(Parcel source) {
@@ -102,6 +133,77 @@ public class OperationResultParcel implements Parcelable {
             }
         };
 
+        @Override
+        public String toString() {
+            return "LogEntryParcel{" +
+                    "mLevel=" + mLevel +
+                    ", mType=" + mType +
+                    ", mParameters=" + Arrays.toString(mParameters) +
+                    ", mIndent=" + mIndent +
+                    '}';
+        }
+    }
+
+    public SuperCardToast createNotify(final Activity activity) {
+
+        int resultType = getResult();
+
+        String str;
+        int duration, color;
+
+        // Not an overall failure
+        if ((resultType & OperationResultParcel.RESULT_ERROR) == 0) {
+
+            if (getLog().containsWarnings()) {
+                duration = 0;
+                color = Style.ORANGE;
+            } else {
+                duration = SuperToast.Duration.LONG;
+                color = Style.GREEN;
+            }
+
+            str = "operation succeeded!";
+            // str = activity.getString(R.string.import_error);
+
+        } else {
+
+            duration = 0;
+            color = Style.RED;
+
+            str = "operation failed";
+            // str = activity.getString(R.string.import_error);
+
+        }
+
+        boolean button = getLog() != null && !getLog().isEmpty();
+        SuperCardToast toast = new SuperCardToast(activity,
+                button ? SuperToast.Type.BUTTON : SuperToast.Type.STANDARD,
+                Style.getStyle(color, SuperToast.Animations.POPUP));
+        toast.setText(str);
+        toast.setDuration(duration);
+        toast.setIndeterminate(duration == 0);
+        toast.setSwipeToDismiss(true);
+        // If we have a log and it's non-empty, show a View Log button
+        if (button) {
+            toast.setButtonIcon(R.drawable.ic_action_view_as_list,
+                    activity.getResources().getString(R.string.view_log));
+            toast.setButtonTextColor(activity.getResources().getColor(R.color.black));
+            toast.setTextColor(activity.getResources().getColor(R.color.black));
+            toast.setOnClickWrapper(new OnClickWrapper("supercardtoast",
+                    new SuperToast.OnClickListener() {
+                        @Override
+                        public void onClick(View view, Parcelable token) {
+                            Intent intent = new Intent(
+                                    activity, LogDisplayActivity.class);
+                            intent.putExtra(LogDisplayFragment.EXTRA_RESULT, OperationResultParcel.this);
+                            activity.startActivity(intent);
+                        }
+                    }
+            ));
+        }
+
+        return toast;
+
     }
 
     /** This is an enum of all possible log events.
@@ -122,6 +224,8 @@ public class OperationResultParcel implements Parcelable {
      *
      */
     public static enum LogType {
+
+        INTERNAL_ERROR (R.string.internal_error),
 
         // import public
         MSG_IP(R.string.msg_ip),
@@ -165,6 +269,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_IP_UID_CERT_ERROR (R.string.msg_ip_uid_cert_error),
         MSG_IP_UID_CERT_GOOD (R.string.msg_ip_uid_cert_good),
         MSG_IP_UID_CERTS_UNKNOWN (R.plurals.msg_ip_uid_certs_unknown),
+        MSG_IP_UID_CLASSIFYING_ZERO (R.string.msg_ip_uid_classifying_zero),
         MSG_IP_UID_CLASSIFYING (R.plurals.msg_ip_uid_classifying),
         MSG_IP_UID_REORDER(R.string.msg_ip_uid_reorder),
         MSG_IP_UID_PROCESSING (R.string.msg_ip_uid_processing),
@@ -192,6 +297,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_KC_REVOKE_BAD_LOCAL (R.string.msg_kc_revoke_bad_local),
         MSG_KC_REVOKE_BAD_TIME (R.string.msg_kc_revoke_bad_time),
         MSG_KC_REVOKE_BAD_TYPE (R.string.msg_kc_revoke_bad_type),
+        MSG_KC_REVOKE_BAD_TYPE_UID (R.string.msg_kc_revoke_bad_type_uid),
         MSG_KC_REVOKE_BAD (R.string.msg_kc_revoke_bad),
         MSG_KC_REVOKE_DUP (R.string.msg_kc_revoke_dup),
         MSG_KC_SUB (R.string.msg_kc_sub),
@@ -223,6 +329,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_KC_UID_NO_CERT (R.string.msg_kc_uid_no_cert),
         MSG_KC_UID_REVOKE_DUP (R.string.msg_kc_uid_revoke_dup),
         MSG_KC_UID_REVOKE_OLD (R.string.msg_kc_uid_revoke_old),
+        MSG_KC_UID_REMOVE (R.string.msg_kc_uid_remove),
 
 
         // keyring consolidation
@@ -232,13 +339,31 @@ public class OperationResultParcel implements Parcelable {
         MSG_MG_HETEROGENEOUS (R.string.msg_mg_heterogeneous),
         MSG_MG_NEW_SUBKEY (R.string.msg_mg_new_subkey),
         MSG_MG_FOUND_NEW (R.string.msg_mg_found_new),
+        MSG_MG_UNCHANGED (R.string.msg_mg_unchanged),
+
+        // secret key create
+        MSG_CR (R.string.msg_cr),
+        MSG_CR_ERROR_NO_MASTER (R.string.msg_cr_error_no_master),
+        MSG_CR_ERROR_NO_USER_ID (R.string.msg_cr_error_no_user_id),
+        MSG_CR_ERROR_NO_CERTIFY (R.string.msg_cr_error_no_certify),
+        MSG_CR_ERROR_KEYSIZE_512 (R.string.msg_cr_error_keysize_512),
+        MSG_CR_ERROR_UNKNOWN_ALGO (R.string.msg_cr_error_unknown_algo),
+        MSG_CR_ERROR_INTERNAL_PGP (R.string.msg_cr_error_internal_pgp),
+        MSG_CR_ERROR_MASTER_ELGAMAL (R.string.msg_cr_error_master_elgamal),
 
         // secret key modify
         MSG_MF (R.string.msg_mr),
         MSG_MF_ERROR_ENCODE (R.string.msg_mf_error_encode),
+        MSG_MF_ERROR_FINGERPRINT (R.string.msg_mf_error_fingerprint),
+        MSG_MF_ERROR_KEYID (R.string.msg_mf_error_keyid),
+        MSG_MF_ERROR_INTEGRITY (R.string.msg_mf_error_integrity),
+        MSG_MF_ERROR_NOEXIST_PRIMARY (R.string.msg_mf_error_noexist_primary),
+        MSG_MF_ERROR_REVOKED_PRIMARY (R.string.msg_mf_error_revoked_primary),
         MSG_MF_ERROR_PGP (R.string.msg_mf_error_pgp),
         MSG_MF_ERROR_SIG (R.string.msg_mf_error_sig),
         MSG_MF_PASSPHRASE (R.string.msg_mf_passphrase),
+        MSG_MF_PRIMARY_REPLACE_OLD (R.string.msg_mf_primary_replace_old),
+        MSG_MF_PRIMARY_NEW (R.string.msg_mf_primary_new),
         MSG_MF_SUBKEY_CHANGE (R.string.msg_mf_subkey_change),
         MSG_MF_SUBKEY_MISSING (R.string.msg_mf_subkey_missing),
         MSG_MF_SUBKEY_NEW_ID (R.string.msg_mf_subkey_new_id),
@@ -249,6 +374,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_MF_UID_ADD (R.string.msg_mf_uid_add),
         MSG_MF_UID_PRIMARY (R.string.msg_mf_uid_primary),
         MSG_MF_UID_REVOKE (R.string.msg_mf_uid_revoke),
+        MSG_MF_UID_ERROR_EMPTY (R.string.msg_mf_uid_error_empty),
         MSG_MF_UNLOCK_ERROR (R.string.msg_mf_unlock_error),
         MSG_MF_UNLOCK (R.string.msg_mf_unlock),
         ;
@@ -280,7 +406,7 @@ public class OperationResultParcel implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(mResult);
-        dest.writeTypedList(mLog);
+        dest.writeTypedList(mLog.toList());
     }
 
     public static final Creator<OperationResultParcel> CREATOR = new Creator<OperationResultParcel>() {
@@ -293,20 +419,21 @@ public class OperationResultParcel implements Parcelable {
         }
     };
 
-    public static class OperationLog extends ArrayList<LogEntryParcel> {
+    public static class OperationLog implements Iterable<LogEntryParcel> {
+
+        private final List<LogEntryParcel> mParcels = new ArrayList<LogEntryParcel>();
 
         /// Simple convenience method
         public void add(LogLevel level, LogType type, int indent, Object... parameters) {
-            Log.d(Constants.TAG, type.toString());
-            add(new OperationResultParcel.LogEntryParcel(level, type, indent, parameters));
+            mParcels.add(new OperationResultParcel.LogEntryParcel(level, type, indent, parameters));
         }
 
         public void add(LogLevel level, LogType type, int indent) {
-            add(new OperationResultParcel.LogEntryParcel(level, type, indent, (Object[]) null));
+            mParcels.add(new OperationResultParcel.LogEntryParcel(level, type, indent, (Object[]) null));
         }
 
         public boolean containsWarnings() {
-            for(LogEntryParcel entry : new IterableIterator<LogEntryParcel>(iterator())) {
+            for(LogEntryParcel entry : new IterableIterator<LogEntryParcel>(mParcels.iterator())) {
                 if (entry.mLevel == LogLevel.WARN || entry.mLevel == LogLevel.ERROR) {
                     return true;
                 }
@@ -314,6 +441,22 @@ public class OperationResultParcel implements Parcelable {
             return false;
         }
 
+        public void addAll(List<LogEntryParcel> parcels) {
+            mParcels.addAll(parcels);
+        }
+
+        public List<LogEntryParcel> toList() {
+            return mParcels;
+        }
+
+        public boolean isEmpty() {
+            return mParcels.isEmpty();
+        }
+
+        @Override
+        public Iterator<LogEntryParcel> iterator() {
+            return mParcels.iterator();
+        }
     }
 
 }

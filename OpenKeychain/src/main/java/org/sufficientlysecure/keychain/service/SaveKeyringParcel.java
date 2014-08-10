@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2014 Dominik Schürmann <dominik@dominikschuermann.de>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package org.sufficientlysecure.keychain.service;
 
 import android.os.Parcel;
@@ -6,101 +23,166 @@ import android.os.Parcelable;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-/** This class is a a transferable representation for a collection of changes
+/**
+ * This class is a a transferable representation for a collection of changes
  * to be done on a keyring.
- *
+ * <p/>
  * This class should include all types of operations supported in the backend.
- *
+ * <p/>
  * All changes are done in a differential manner. Besides the two key
  * identification attributes, all attributes may be null, which indicates no
  * change to the keyring. This is also the reason why boxed values are used
  * instead of primitives in the subclasses.
- *
+ * <p/>
  * Application of operations in the backend should be fail-fast, which means an
  * error in any included operation (for example revocation of a non-existent
  * subkey) will cause the operation as a whole to fail.
  */
 public class SaveKeyringParcel implements Parcelable {
 
-    // the master key id to be edited
-    public final long mMasterKeyId;
-    // the key fingerprint, for safety
-    public final byte[] mFingerprint;
+    // the master key id to be edited. if this is null, a new one will be created
+    public Long mMasterKeyId;
+    // the key fingerprint, for safety. MUST be null for a new key.
+    public byte[] mFingerprint;
 
-    public String newPassphrase;
+    public String mNewPassphrase;
 
-    public ArrayList<String> addUserIds;
-    public ArrayList<SubkeyAdd> addSubKeys;
+    public ArrayList<String> mAddUserIds;
+    public ArrayList<SubkeyAdd> mAddSubKeys;
 
-    public ArrayList<SubkeyChange> changeSubKeys;
-    public String changePrimaryUserId;
+    public ArrayList<SubkeyChange> mChangeSubKeys;
+    public String mChangePrimaryUserId;
 
-    public ArrayList<String> revokeUserIds;
-    public ArrayList<Long> revokeSubKeys;
+    public ArrayList<String> mRevokeUserIds;
+    public ArrayList<Long> mRevokeSubKeys;
+
+    public SaveKeyringParcel() {
+        reset();
+    }
 
     public SaveKeyringParcel(long masterKeyId, byte[] fingerprint) {
+        this();
         mMasterKeyId = masterKeyId;
         mFingerprint = fingerprint;
-        addUserIds = new ArrayList<String>();
-        addSubKeys = new ArrayList<SubkeyAdd>();
-        changeSubKeys = new ArrayList<SubkeyChange>();
-        revokeUserIds = new ArrayList<String>();
-        revokeSubKeys = new ArrayList<Long>();
+    }
+
+    public void reset() {
+        mNewPassphrase = null;
+        mAddUserIds = new ArrayList<String>();
+        mAddSubKeys = new ArrayList<SubkeyAdd>();
+        mChangePrimaryUserId = null;
+        mChangeSubKeys = new ArrayList<SubkeyChange>();
+        mRevokeUserIds = new ArrayList<String>();
+        mRevokeSubKeys = new ArrayList<Long>();
     }
 
     // performance gain for using Parcelable here would probably be negligible,
     // use Serializable instead.
     public static class SubkeyAdd implements Serializable {
-        public final int mAlgorithm;
-        public final int mKeysize;
-        public final int mFlags;
-        public final Long mExpiry;
+        public int mAlgorithm;
+        public int mKeysize;
+        public int mFlags;
+        public Long mExpiry;
+
         public SubkeyAdd(int algorithm, int keysize, int flags, Long expiry) {
             mAlgorithm = algorithm;
             mKeysize = keysize;
             mFlags = flags;
             mExpiry = expiry;
         }
+
+        @Override
+        public String toString() {
+            String out = "mAlgorithm: " + mAlgorithm + ", ";
+            out += "mKeysize: " + mKeysize + ", ";
+            out += "mFlags: " + mFlags;
+            out += "mExpiry: " + mExpiry;
+
+            return out;
+        }
     }
 
     public static class SubkeyChange implements Serializable {
-        public final long mKeyId;
-        public final Integer mFlags;
-        public final Long mExpiry;
+        public long mKeyId;
+        public Integer mFlags;
+        // this is a long unix timestamp, in seconds (NOT MILLISECONDS!)
+        public Long mExpiry;
+
+        public SubkeyChange(long keyId) {
+            mKeyId = keyId;
+        }
+
         public SubkeyChange(long keyId, Integer flags, Long expiry) {
             mKeyId = keyId;
             mFlags = flags;
             mExpiry = expiry;
         }
+
+        @Override
+        public String toString() {
+            String out = "mKeyId: " + mKeyId + ", ";
+            out += "mFlags: " + mFlags + ", ";
+            out += "mExpiry: " + mExpiry;
+
+            return out;
+        }
+    }
+
+    public SubkeyChange getSubkeyChange(long keyId) {
+        for (SubkeyChange subkeyChange : mChangeSubKeys) {
+            if (subkeyChange.mKeyId == keyId) {
+                return subkeyChange;
+            }
+        }
+        return null;
+    }
+
+    public SubkeyChange getOrCreateSubkeyChange(long keyId) {
+        SubkeyChange foundSubkeyChange = getSubkeyChange(keyId);
+        if (foundSubkeyChange != null) {
+            return foundSubkeyChange;
+        } else {
+            // else, create a new one
+            SubkeyChange newSubkeyChange = new SubkeyChange(keyId);
+            mChangeSubKeys.add(newSubkeyChange);
+            return newSubkeyChange;
+        }
     }
 
     public SaveKeyringParcel(Parcel source) {
-        mMasterKeyId = source.readLong();
+        mMasterKeyId = source.readInt() != 0 ? source.readLong() : null;
         mFingerprint = source.createByteArray();
 
-        addUserIds = source.createStringArrayList();
-        addSubKeys = (ArrayList<SubkeyAdd>) source.readSerializable();
+        mNewPassphrase = source.readString();
 
-        changeSubKeys = (ArrayList<SubkeyChange>) source.readSerializable();
-        changePrimaryUserId = source.readString();
+        mAddUserIds = source.createStringArrayList();
+        mAddSubKeys = (ArrayList<SubkeyAdd>) source.readSerializable();
 
-        revokeUserIds = source.createStringArrayList();
-        revokeSubKeys = (ArrayList<Long>) source.readSerializable();
+        mChangeSubKeys = (ArrayList<SubkeyChange>) source.readSerializable();
+        mChangePrimaryUserId = source.readString();
+
+        mRevokeUserIds = source.createStringArrayList();
+        mRevokeSubKeys = (ArrayList<Long>) source.readSerializable();
     }
 
     @Override
     public void writeToParcel(Parcel destination, int flags) {
-        destination.writeLong(mMasterKeyId);
+        destination.writeInt(mMasterKeyId == null ? 0 : 1);
+        if (mMasterKeyId != null) {
+            destination.writeLong(mMasterKeyId);
+        }
         destination.writeByteArray(mFingerprint);
 
-        destination.writeStringList(addUserIds);
-        destination.writeSerializable(addSubKeys);
+        destination.writeString(mNewPassphrase);
 
-        destination.writeSerializable(changeSubKeys);
-        destination.writeString(changePrimaryUserId);
+        destination.writeStringList(mAddUserIds);
+        destination.writeSerializable(mAddSubKeys);
 
-        destination.writeStringList(revokeUserIds);
-        destination.writeSerializable(revokeSubKeys);
+        destination.writeSerializable(mChangeSubKeys);
+        destination.writeString(mChangePrimaryUserId);
+
+        destination.writeStringList(mRevokeUserIds);
+        destination.writeSerializable(mRevokeSubKeys);
     }
 
     public static final Creator<SaveKeyringParcel> CREATOR = new Creator<SaveKeyringParcel>() {
@@ -118,4 +200,17 @@ public class SaveKeyringParcel implements Parcelable {
         return 0;
     }
 
+    @Override
+    public String toString() {
+        String out = "mMasterKeyId: " + mMasterKeyId + "\n";
+        out += "mNewPassphrase: " + mNewPassphrase + "\n";
+        out += "mAddUserIds: " + mAddUserIds + "\n";
+        out += "mAddSubKeys: " + mAddSubKeys + "\n";
+        out += "mChangeSubKeys: " + mChangeSubKeys + "\n";
+        out += "mChangePrimaryUserId: " + mChangePrimaryUserId + "\n";
+        out += "mRevokeUserIds: " + mRevokeUserIds + "\n";
+        out += "mRevokeSubKeys: " + mRevokeSubKeys;
+
+        return out;
+    }
 }

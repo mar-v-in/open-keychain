@@ -27,6 +27,7 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 
+import org.spongycastle.bcpg.CompressionAlgorithmTags;
 import org.spongycastle.bcpg.HashAlgorithmTags;
 import org.spongycastle.openpgp.PGPEncryptedData;
 import org.sufficientlysecure.keychain.Constants;
@@ -88,10 +89,10 @@ public class PreferencesActivity extends PreferenceActivity {
                     (IntegerListPreference) findPreference(Constants.Pref.DEFAULT_ENCRYPTION_ALGORITHM));
 
             int[] valueIds = new int[]{
-                    Constants.choice.compression.none,
-                    Constants.choice.compression.zip,
-                    Constants.choice.compression.zlib,
-                    Constants.choice.compression.bzip2,
+                    CompressionAlgorithmTags.UNCOMPRESSED,
+                    CompressionAlgorithmTags.ZIP,
+                    CompressionAlgorithmTags.ZLIB,
+                    CompressionAlgorithmTags.BZIP2,
             };
             String[] entries = new String[]{
                     getString(R.string.choice_none) + " (" + getString(R.string.compression_fast) + ")",
@@ -120,6 +121,9 @@ public class PreferencesActivity extends PreferenceActivity {
 
             initializeForceV3Signatures(
                     (CheckBoxPreference) findPreference(Constants.Pref.FORCE_V3_SIGNATURES));
+
+            initializeConcealPgpApplication(
+                    (CheckBoxPreference) findPreference(Constants.Pref.CONCEAL_PGP_APPLICATION));
 
         } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
             // Load the legacy preferences headers
@@ -229,10 +233,10 @@ public class PreferencesActivity extends PreferenceActivity {
                     (IntegerListPreference) findPreference(Constants.Pref.DEFAULT_ENCRYPTION_ALGORITHM));
 
             int[] valueIds = new int[]{
-                    Constants.choice.compression.none,
-                    Constants.choice.compression.zip,
-                    Constants.choice.compression.zlib,
-                    Constants.choice.compression.bzip2,
+                    CompressionAlgorithmTags.UNCOMPRESSED,
+                    CompressionAlgorithmTags.ZIP,
+                    CompressionAlgorithmTags.ZLIB,
+                    CompressionAlgorithmTags.BZIP2,
             };
 
             String[] entries = new String[]{
@@ -264,6 +268,9 @@ public class PreferencesActivity extends PreferenceActivity {
 
             initializeForceV3Signatures(
                     (CheckBoxPreference) findPreference(Constants.Pref.FORCE_V3_SIGNATURES));
+
+            initializeConcealPgpApplication(
+                    (CheckBoxPreference) findPreference(Constants.Pref.CONCEAL_PGP_APPLICATION));
         }
     }
 
@@ -395,5 +402,16 @@ public class PreferencesActivity extends PreferenceActivity {
                         return false;
                     }
                 });
+    }
+
+    private static void initializeConcealPgpApplication(final CheckBoxPreference mConcealPgpApplication) {
+        mConcealPgpApplication.setChecked(sPreferences.getConcealPgpApplication());
+        mConcealPgpApplication.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                mConcealPgpApplication.setChecked((Boolean) newValue);
+                sPreferences.setConcealPgpApplication((Boolean) newValue);
+                return false;
+            }
+        });
     }
 }

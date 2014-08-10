@@ -20,18 +20,22 @@ package org.sufficientlysecure.keychain.ui.dialog;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.v4.app.DialogFragment;
+import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.WindowManager.LayoutParams;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
@@ -44,6 +48,7 @@ import org.sufficientlysecure.keychain.util.Log;
 public class SetPassphraseDialogFragment extends DialogFragment implements OnEditorActionListener {
     private static final String ARG_MESSENGER = "messenger";
     private static final String ARG_TITLE = "title";
+    private static final String ARG_OLD_PASSPHRASE = "old_passphrase";
 
     public static final int MESSAGE_OKAY = 1;
 
@@ -52,6 +57,7 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
     private Messenger mMessenger;
     private EditText mPassphraseEditText;
     private EditText mPassphraseAgainEditText;
+    private CheckBox mNoPassphraseCheckBox;
 
     /**
      * Creates new instance of this dialog fragment
@@ -60,11 +66,12 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
      * @param messenger to communicate back after setting the passphrase
      * @return
      */
-    public static SetPassphraseDialogFragment newInstance(Messenger messenger, int title) {
+    public static SetPassphraseDialogFragment newInstance(Messenger messenger, String oldPassphrase, int title) {
         SetPassphraseDialogFragment frag = new SetPassphraseDialogFragment();
         Bundle args = new Bundle();
         args.putInt(ARG_TITLE, title);
         args.putParcelable(ARG_MESSENGER, messenger);
+        args.putString(ARG_OLD_PASSPHRASE, oldPassphrase);
 
         frag.setArguments(args);
 
@@ -80,6 +87,7 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
 
         int title = getArguments().getInt(ARG_TITLE);
         mMessenger = getArguments().getParcelable(ARG_MESSENGER);
+        String oldPassphrase = getArguments().getString(ARG_OLD_PASSPHRASE);
 
         CustomAlertDialogBuilder alert = new CustomAlertDialogBuilder(activity);
 
@@ -92,6 +100,21 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
 
         mPassphraseEditText = (EditText) view.findViewById(R.id.passphrase_passphrase);
         mPassphraseAgainEditText = (EditText) view.findViewById(R.id.passphrase_passphrase_again);
+        mNoPassphraseCheckBox = (CheckBox) view.findViewById(R.id.passphrase_no_passphrase);
+
+        if (TextUtils.isEmpty(oldPassphrase)) {
+            mNoPassphraseCheckBox.setChecked(true);
+            mPassphraseEditText.setEnabled(false);
+            mPassphraseAgainEditText.setEnabled(false);
+        }
+
+        mNoPassphraseCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                mPassphraseEditText.setEnabled(!isChecked);
+                mPassphraseAgainEditText.setEnabled(!isChecked);
+            }
+        });
 
         alert.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 
@@ -99,24 +122,31 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
             public void onClick(DialogInterface dialog, int id) {
                 dismiss();
 
-                String passphrase1 = mPassphraseEditText.getText().toString();
-                String passphrase2 = mPassphraseAgainEditText.getText().toString();
-                if (!passphrase1.equals(passphrase2)) {
-                    Toast.makeText(
-                            activity,
-                            getString(R.string.error_message,
-                                    getString(R.string.passphrases_do_not_match)), Toast.LENGTH_SHORT)
-                            .show();
-                    return;
-                }
+                String passphrase1;
+                if (mNoPassphraseCheckBox.isChecked()) {
+                    passphrase1 = "";
+                } else {
+                    passphrase1 = mPassphraseEditText.getText().toString();
+                    String passphrase2 = mPassphraseAgainEditText.getText().toString();
+                    if (!passphrase1.equals(passphrase2)) {
+                        Toast.makeText(
+                                activity,
+                                getString(R.string.error_message,
+                                        getString(R.string.passphrases_do_not_match)), Toast.LENGTH_SHORT
+                        )
+                                .show();
+                        return;
+                    }
 
-                if (passphrase1.equals("")) {
-                    Toast.makeText(
-                            activity,
-                            getString(R.string.error_message,
-                                    getString(R.string.passphrase_must_not_be_empty)),
-                            Toast.LENGTH_SHORT).show();
-                    return;
+                    if (passphrase1.equals("")) {
+                        Toast.makeText(
+                                activity,
+                                getString(R.string.error_message,
+                                        getString(R.string.passphrase_must_not_be_empty)),
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        return;
+                    }
                 }
 
                 // return resulting data back to activity
@@ -135,18 +165,50 @@ public class SetPassphraseDialogFragment extends DialogFragment implements OnEdi
             }
         });
 
+        // Hack to open keyboard.
+        // This is the only method that I found to work across all Android versions
+        // http://turbomanage.wordpress.com/2012/05/02/show-soft-keyboard-automatically-when-edittext-receives-focus/
+        // Notes: * onCreateView can't be used because we want to add buttons to the dialog
+        //        * opening in onActivityCreated does not work on Android 4.4
+        mPassphraseEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                mPassphraseEditText.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        InputMethodManager imm = (InputMethodManager) getActivity()
+                                .getSystemService(Context.INPUT_METHOD_SERVICE);
+                        imm.showSoftInput(mPassphraseEditText, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                });
+            }
+        });
+        mPassphraseEditText.requestFocus();
+
+        mPassphraseAgainEditText.setImeActionLabel(getString(android.R.string.ok), EditorInfo.IME_ACTION_DONE);
+        mPassphraseAgainEditText.setOnEditorActionListener(this);
+
         return alert.show();
     }
 
     @Override
-    public void onActivityCreated(Bundle arg0) {
-        super.onActivityCreated(arg0);
+    public void onDismiss(DialogInterface dialog) {
+        super.onDismiss(dialog);
 
-        // request focus and open soft keyboard
-        mPassphraseEditText.requestFocus();
-        getDialog().getWindow().setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        // hide keyboard on dismiss
+        hideKeyboard();
+    }
 
-        mPassphraseAgainEditText.setOnEditorActionListener(this);
+    private void hideKeyboard() {
+        InputMethodManager inputManager = (InputMethodManager) getActivity()
+                .getSystemService(Context.INPUT_METHOD_SERVICE);
+
+        //check if no view has focus:
+        View v = getActivity().getCurrentFocus();
+        if (v == null)
+            return;
+
+        inputManager.hideSoftInputFromWindow(v.getWindowToken(), 0);
     }
 
     /**

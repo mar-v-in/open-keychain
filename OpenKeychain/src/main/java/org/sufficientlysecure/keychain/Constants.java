@@ -17,15 +17,15 @@
 
 package org.sufficientlysecure.keychain;
 
-import android.os.Build;
 import android.os.Environment;
 
-import org.spongycastle.bcpg.CompressionAlgorithmTags;
 import org.spongycastle.jce.provider.BouncyCastleProvider;
 import org.sufficientlysecure.keychain.remote.ui.AppsListActivity;
 import org.sufficientlysecure.keychain.ui.DecryptActivity;
 import org.sufficientlysecure.keychain.ui.EncryptActivity;
 import org.sufficientlysecure.keychain.ui.KeyListActivity;
+
+import java.io.File;
 
 public final class Constants {
 
@@ -49,12 +49,11 @@ public final class Constants {
 
     public static final String CUSTOM_CONTACT_DATA_MIME_TYPE = "vnd.android.cursor.item/vnd.org.sufficientlysecure.keychain.key";
 
-    public static boolean KITKAT = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+    public static int TEMPFILE_TTL = 24 * 60 * 60 * 1000; // 1 day
 
     public static final class Path {
-        public static final String APP_DIR = Environment.getExternalStorageDirectory()
-                + "/OpenKeychain";
-        public static final String APP_DIR_FILE = APP_DIR + "/export.asc";
+        public static final File APP_DIR = new File(Environment.getExternalStorageDirectory(), "OpenKeychain");
+        public static final File APP_DIR_FILE = new File(APP_DIR, "export.asc");
     }
 
     public static final class Pref {
@@ -68,6 +67,8 @@ public final class Constants {
         public static final String FORCE_V3_SIGNATURES = "forceV3Signatures";
         public static final String KEY_SERVERS = "keyServers";
         public static final String KEY_SERVERS_DEFAULT_VERSION = "keyServersDefaultVersion";
+        public static final String CONCEAL_PGP_APPLICATION = "concealPgpApplication";
+        public static final String FIRST_TIME = "firstTime";
     }
 
     public static final class Defaults {
@@ -86,23 +87,6 @@ public final class Constants {
                 DECRYPT,
                 REGISTERED_APPS_LIST
         };
-    }
-
-    public static final class choice {
-        public static final class algorithm {
-            // TODO: legacy reasons :/ better: PublicKeyAlgorithmTags
-            public static final int dsa = 0x21070001;
-            public static final int elgamal = 0x21070002;
-            public static final int rsa = 0x21070003;
-        }
-
-        public static final class compression {
-            // TODO: legacy reasons :/ better: CompressionAlgorithmTags.UNCOMPRESSED
-            public static final int none = 0x21070001;
-            public static final int zlib = CompressionAlgorithmTags.ZLIB;
-            public static final int bzip2 = CompressionAlgorithmTags.BZIP2;
-            public static final int zip = CompressionAlgorithmTags.ZIP;
-        }
     }
 
     public static final class key {
