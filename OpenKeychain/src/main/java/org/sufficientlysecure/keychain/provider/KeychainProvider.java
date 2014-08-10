@@ -271,6 +271,11 @@ public class KeychainProvider extends ContentProvider {
                         "kE." + Keys.KEY_ID + " AS " + KeyRings.HAS_ENCRYPT);
                 projectionMap.put(KeyRings.HAS_SIGN,
                         "kS." + Keys.KEY_ID + " AS " + KeyRings.HAS_SIGN);
+                projectionMap.put(KeyRings.VISIBLE, Tables.KEYRING_INFO + "." + KeyRings.VISIBLE);
+                projectionMap.put(KeyRings.SOURCE, Tables.KEYRING_INFO + "." + KeyRings.SOURCE);
+                projectionMap.put(KeyRings.REASON, Tables.KEYRING_INFO + "." + KeyRings.REASON);
+                projectionMap.put(KeyRings.IMPORT_DATE, Tables.KEYRING_INFO + "." + KeyRings.IMPORT_DATE);
+                projectionMap.put(KeyRings.UPDATE_DATE, Tables.KEYRING_INFO + "." + KeyRings.UPDATE_DATE);
                 qb.setProjectionMap(projectionMap);
 
                 // Need this as list so we can search in it
@@ -289,6 +294,10 @@ public class KeychainProvider extends ContentProvider {
                             + Tables.CERTS + "." + KeyRings.MASTER_KEY_ID
                             + " AND " + Tables.CERTS + "." + Certs.VERIFIED
                                 + " = " + Certs.VERIFIED_SECRET
+                        + ") LEFT JOIN " + Tables.KEYRING_INFO + " ON ("
+                            + Tables.KEYS + "." + Keys.MASTER_KEY_ID
+                            + " = "
+                            + Tables.KEYRING_INFO + "." + KeyRings.MASTER_KEY_ID
                         + ")"
                         // fairly expensive joins following, only do when requested
                         + (plist.contains(KeyRings.PUBKEY_DATA) ?
@@ -527,7 +536,6 @@ public class KeychainProvider extends ContentProvider {
 
                 break;
             }
-
             case API_APPS:
                 qb.setTables(Tables.API_APPS);
 

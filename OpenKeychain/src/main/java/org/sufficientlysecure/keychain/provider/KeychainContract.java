@@ -80,6 +80,15 @@ public class KeychainContract {
         String PACKAGE_NAME = "package_name"; // foreign key to api_apps.package_name
     }
 
+    interface KeyRingInfoColumns {
+        String MASTER_KEY_ID = "master_key_id";
+        String VISIBLE = "visible";
+        String REASON = "reason";
+        String SOURCE = "source";
+        String IMPORT_DATE = "import_date";
+        String UPDATE_DATE = "update_date";
+    }
+
     public static final String CONTENT_AUTHORITY = Constants.PACKAGE_NAME + ".provider";
 
     private static final Uri BASE_CONTENT_URI_INTERNAL = Uri
@@ -103,7 +112,7 @@ public class KeychainContract {
     public static final String BASE_API_APPS = "api_apps";
     public static final String PATH_ACCOUNTS = "accounts";
 
-    public static class KeyRings implements BaseColumns, KeysColumns, UserIdsColumns {
+    public static class KeyRings implements BaseColumns, KeysColumns, UserIdsColumns, KeyRingInfoColumns {
         public static final String MASTER_KEY_ID = KeysColumns.MASTER_KEY_ID;
         public static final String IS_REVOKED = KeysColumns.IS_REVOKED;
         public static final String VERIFIED = CertsColumns.VERIFIED;

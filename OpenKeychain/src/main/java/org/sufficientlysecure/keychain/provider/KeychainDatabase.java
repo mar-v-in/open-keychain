@@ -29,6 +29,7 @@ import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralException;
 import org.sufficientlysecure.keychain.provider.KeychainContract.ApiAppsAccountsColumns;
 import org.sufficientlysecure.keychain.provider.KeychainContract.ApiAppsColumns;
 import org.sufficientlysecure.keychain.provider.KeychainContract.CertsColumns;
+import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRingInfoColumns;
 import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRingsColumns;
 import org.sufficientlysecure.keychain.provider.KeychainContract.KeysColumns;
 import org.sufficientlysecure.keychain.provider.KeychainContract.UserIdsColumns;
@@ -51,7 +52,7 @@ import java.io.IOException;
  */
 public class KeychainDatabase extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "openkeychain.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
     static Boolean apgHack = false;
 
     public interface Tables {
@@ -62,6 +63,7 @@ public class KeychainDatabase extends SQLiteOpenHelper {
         String CERTS = "certs";
         String API_APPS = "api_apps";
         String API_ACCOUNTS = "api_accounts";
+        String KEYRING_INFO = "keyring_info";
     }
 
     private static final String CREATE_KEYRINGS_PUBLIC =
@@ -160,6 +162,21 @@ public class KeychainDatabase extends SQLiteOpenHelper {
                     + Tables.API_APPS + "(" + ApiAppsColumns.PACKAGE_NAME + ") ON DELETE CASCADE"
             + ")";
 
+    private static final String CREATE_KEYRING_INFO =
+            "CREATE TABLE IF NOT EXISTS " + Tables.KEYRING_INFO + " ("
+                + KeyRingInfoColumns.MASTER_KEY_ID + " INTEGER,"
+                + KeyRingInfoColumns.VISIBLE + " INTEGER DEFAULT 1, "
+                + KeyRingInfoColumns.REASON + " INTEGER DEFAULT 0, "
+                + KeyRingInfoColumns.SOURCE + " TEXT DEFAULT '', "
+                + KeyRingInfoColumns.IMPORT_DATE + " INTEGER DEFAULT 0, "
+                + KeyRingInfoColumns.UPDATE_DATE + " INTEGER DEFAULT 0, "
+
+                + "PRIMARY KEY(" + CertsColumns.MASTER_KEY_ID + "), "
+                + "FOREIGN KEY(" + CertsColumns.MASTER_KEY_ID + ") REFERENCES "
+                + Tables.KEY_RINGS_PUBLIC + "(" + KeyRingsColumns.MASTER_KEY_ID + ") ON DELETE CASCADE"
+            + ")";
+
+
     KeychainDatabase(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
 
@@ -188,6 +205,7 @@ public class KeychainDatabase extends SQLiteOpenHelper {
         db.execSQL(CREATE_CERTS);
         db.execSQL(CREATE_API_APPS);
         db.execSQL(CREATE_API_APPS_ACCOUNTS);
+        db.execSQL(CREATE_KEYRING_INFO);
     }
 
     @Override
@@ -208,6 +226,12 @@ public class KeychainDatabase extends SQLiteOpenHelper {
             } catch (Exception e) {
                 // never mind, the column probably already existed
             }
+        }
+        if (oldVersion <= 2) {
+            // We add the info table, which is new for OpenKeychain 2.9
+            db.execSQL(CREATE_KEYRING_INFO);
+            // fill default values
+            db.execSQL("INSERT INTO keyring_info (master_key_id) SELECT master_key_id FROM keyrings_public");
         }
     }
 
