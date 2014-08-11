@@ -58,6 +58,7 @@ public class KeychainProvider extends ContentProvider {
     private static final int KEY_RING_SECRET = 204;
     private static final int KEY_RING_CERTS = 205;
     private static final int KEY_RING_CERTS_SPECIFIC = 206;
+    private static final int KEY_RING_INFO = 207;
 
     private static final int API_APPS = 301;
     private static final int API_APPS_BY_PACKAGE_NAME = 303;
@@ -141,6 +142,9 @@ public class KeychainProvider extends ContentProvider {
         matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS + "/*/"
                 + KeychainContract.PATH_CERTS,
                 KEY_RING_CERTS);
+        matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS + "/*/"
+                + KeychainContract.PATH_INFO,
+                KEY_RING_INFO);
         matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS + "/*/"
                         + KeychainContract.PATH_CERTS + "/*/*",
                 KEY_RING_CERTS_SPECIFIC);
@@ -632,6 +636,11 @@ public class KeychainProvider extends ContentProvider {
                     // TODO this would be better handled in savePublicKeyRing directly!
                     db.replaceOrThrow(Tables.CERTS, null, values);
                     keyId = values.getAsLong(Certs.MASTER_KEY_ID);
+                    break;
+
+                case KEY_RING_INFO:
+                    db.insertOrThrow(Tables.KEYRING_INFO, null, values);
+                    keyId = values.getAsLong(KeychainContract.KeyRingInfo.MASTER_KEY_ID);
                     break;
 
                 case API_APPS:

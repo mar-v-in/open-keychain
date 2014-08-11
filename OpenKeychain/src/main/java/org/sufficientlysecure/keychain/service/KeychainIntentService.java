@@ -356,7 +356,7 @@ public class KeychainIntentService extends IntentService
 
                 UncachedKeyRing ring = result.getRing();
 
-                providerHelper.saveSecretKeyRing(ring,  new ProgressScaler(this, 60, 95, 100));
+                providerHelper.saveSecretKeyRing(ring, null, new ProgressScaler(this, 60, 95, 100));
 
                 // cache new passphrase
                 if (saveParcel.mNewPassphrase != null) {
@@ -408,7 +408,7 @@ public class KeychainIntentService extends IntentService
                 }
 
                 PgpImportExport pgpImportExport = new PgpImportExport(this, this);
-                ImportKeyResult result = pgpImportExport.importKeyRings(entries);
+                ImportKeyResult result = pgpImportExport.importKeyRings(entries, null);
 
                 Bundle resultData = new Bundle();
                 resultData.putParcelable(RESULT_IMPORT, result);
@@ -582,7 +582,7 @@ public class KeychainIntentService extends IntentService
                 UncachedKeyRing newRing = certificationKey.certifyUserIds(publicRing, userIds);
 
                 // store the signed key in our local cache
-                providerHelper.savePublicKeyRing(newRing);
+                providerHelper.savePublicKeyRing(newRing, null);
                 sendMessageToHandler(KeychainIntentServiceHandler.MESSAGE_OKAY);
 
             } catch (Exception e) {

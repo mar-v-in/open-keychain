@@ -108,6 +108,7 @@ public class KeychainContract {
     public static final String PATH_USER_IDS = "user_ids";
     public static final String PATH_KEYS = "keys";
     public static final String PATH_CERTS = "certs";
+    public static final String PATH_INFO = "info";
 
     public static final String BASE_API_APPS = "api_apps";
     public static final String PATH_ACCOUNTS = "accounts";
@@ -201,6 +202,15 @@ public class KeychainContract {
             return CONTENT_URI.buildUpon().appendPath(uri.getPathSegments().get(1)).appendPath(PATH_SECRET).build();
         }
 
+    }
+
+    public static class KeyRingInfo implements KeyRingInfoColumns, BaseColumns {
+        public static final Uri CONTENT_URI = BASE_CONTENT_URI_INTERNAL.buildUpon()
+                .appendPath(BASE_KEY_RINGS).build();
+
+        public static Uri buildInfoUri(long masterKeyId) {
+            return CONTENT_URI.buildUpon().appendPath(Long.toString(masterKeyId)).appendPath(PATH_INFO).build();
+        }
     }
 
     public static class Keys implements KeysColumns, BaseColumns {

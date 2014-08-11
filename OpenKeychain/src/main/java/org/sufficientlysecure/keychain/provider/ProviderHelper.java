@@ -270,7 +270,7 @@ public class ProviderHelper {
      * and need to be saved externally to be preserved past the operation.
      */
     @SuppressWarnings("unchecked")
-    private int saveCanonicalizedPublicKeyRing(CanonicalizedPublicKeyRing keyRing,
+    private int saveCanonicalizedPublicKeyRing(CanonicalizedPublicKeyRing keyRing, KeyRingInfoEntry info,
                                                Progressable progress, boolean selfCertsAreTrusted) {
 
         // start with ok result
@@ -487,6 +487,15 @@ public class ProviderHelper {
                 }
             }
 
+            if (info != null) {
+                ContentValues values = info.getValues();
+                values.put(KeychainContract.KeyRingInfo.MASTER_KEY_ID, masterKeyId);
+                operations.add(
+                        ContentProviderOperation.newInsert(KeychainContract.KeyRingInfo.buildInfoUri(masterKeyId))
+                                .withValues(values)
+                                .build());
+            }
+
         } catch (IOException e) {
             log(LogLevel.ERROR, LogType.MSG_IP_FAIL_IO_EXC);
             Log.e(Constants.TAG, "IOException during import", e);
@@ -626,8 +635,8 @@ public class ProviderHelper {
 
     }
 
-    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing keyRing) {
-        return savePublicKeyRing(keyRing, new NullProgressable());
+    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing keyRing, KeyRingInfoEntry info) {
+        return savePublicKeyRing(keyRing, info, new NullProgressable());
     }
 
     /** Save a public keyring into the database.
@@ -635,7 +644,7 @@ public class ProviderHelper {
      * This is a high level method, which takes care of merging all new information into the old and
      * keep public and secret keyrings in sync.
      */
-    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, Progressable progress) {
+    public SaveKeyringResult savePublicKeyRing(UncachedKeyRing publicRing, KeyRingInfoEntry info, Progressable progress) {
 
         try {
             long masterKeyId = publicRing.getMasterKeyId();
@@ -705,7 +714,7 @@ public class ProviderHelper {
                 canSecretRing = null;
             }
 
-            int result = saveCanonicalizedPublicKeyRing(canPublicRing, progress, canSecretRing != null);
+            int result = saveCanonicalizedPublicKeyRing(canPublicRing, info, progress, canSecretRing != null);
 
             // Save the saved keyring (if any)
             if (canSecretRing != null) {
@@ -727,7 +736,7 @@ public class ProviderHelper {
 
     }
 
-    public SaveKeyringResult saveSecretKeyRing(UncachedKeyRing secretRing, Progressable progress) {
+    public SaveKeyringResult saveSecretKeyRing(UncachedKeyRing secretRing, KeyRingInfoEntry info, Progressable progress) {
 
         try {
             long masterKeyId = secretRing.getMasterKeyId();
@@ -802,7 +811,7 @@ public class ProviderHelper {
 
             int result;
 
-            result = saveCanonicalizedPublicKeyRing(canPublicRing, progress, true);
+            result = saveCanonicalizedPublicKeyRing(canPublicRing, info, progress, true);
             if ((result & SaveKeyringResult.RESULT_ERROR) == SaveKeyringResult.RESULT_ERROR) {
                 return new SaveKeyringResult(SaveKeyringResult.RESULT_ERROR, mLog);
             }
@@ -1028,4 +1037,5 @@ public class ProviderHelper {
     public ContentResolver getContentResolver() {
         return mContentResolver;
     }
+
 }

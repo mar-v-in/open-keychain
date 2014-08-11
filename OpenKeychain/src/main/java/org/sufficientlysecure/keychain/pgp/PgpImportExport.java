@@ -30,6 +30,7 @@ import org.sufficientlysecure.keychain.keyimport.HkpKeyserver;
 import org.sufficientlysecure.keychain.keyimport.Keyserver.AddKeyException;
 import org.sufficientlysecure.keychain.keyimport.ParcelableKeyRing;
 import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralException;
+import org.sufficientlysecure.keychain.provider.KeyRingInfoEntry;
 import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.provider.ProviderHelper;
 import org.sufficientlysecure.keychain.service.KeychainIntentService;
@@ -123,7 +124,7 @@ public class PgpImportExport {
     }
 
     /** Imports keys from given data. If keyIds is given only those are imported */
-    public ImportKeyResult importKeyRings(List<ParcelableKeyRing> entries) {
+    public ImportKeyResult importKeyRings(List<ParcelableKeyRing> entries, KeyRingInfoEntry info) {
 
         updateProgress(R.string.progress_importing, 0, 100);
 
@@ -156,10 +157,10 @@ public class PgpImportExport {
 
                 SaveKeyringResult result;
                 if (key.isSecret()) {
-                    result = mProviderHelper.saveSecretKeyRing(key,
+                    result = mProviderHelper.saveSecretKeyRing(key, info,
                             new ProgressScaler(mProgressable, position, (position+1)*progSteps, 100));
                 } else {
-                    result = mProviderHelper.savePublicKeyRing(key,
+                    result = mProviderHelper.savePublicKeyRing(key, info,
                             new ProgressScaler(mProgressable, position, (position+1)*progSteps, 100));
                 }
                 if (!result.success()) {
