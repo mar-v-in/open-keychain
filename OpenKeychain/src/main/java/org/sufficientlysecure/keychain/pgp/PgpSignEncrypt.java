@@ -37,6 +37,7 @@ import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRings;
 import org.sufficientlysecure.keychain.provider.ProviderHelper;
 import org.sufficientlysecure.keychain.util.InputData;
 import org.sufficientlysecure.keychain.util.Log;
+import org.sufficientlysecure.keychain.util.ProgressScaler;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -71,6 +72,7 @@ public class PgpSignEncrypt {
     private String mSignaturePassphrase;
     private boolean mEncryptToSigner;
     private boolean mCleartextInput;
+    private String mOriginalFilename;
 
     private static byte[] NEW_LINE;
 
@@ -101,6 +103,7 @@ public class PgpSignEncrypt {
         this.mSignaturePassphrase = builder.mSignaturePassphrase;
         this.mEncryptToSigner = builder.mEncryptToSigner;
         this.mCleartextInput = builder.mCleartextInput;
+        this.mOriginalFilename = builder.mOriginalFilename;
     }
 
     public static class Builder {
@@ -123,15 +126,16 @@ public class PgpSignEncrypt {
         private String mSignaturePassphrase = null;
         private boolean mEncryptToSigner = false;
         private boolean mCleartextInput = false;
+        private String mOriginalFilename = "";
 
         public Builder(ProviderHelper providerHelper, String versionHeader, InputData data, OutputStream outStream) {
-            this.mProviderHelper = providerHelper;
-            this.mVersionHeader = versionHeader;
-            this.mData = data;
-            this.mOutStream = outStream;
+            mProviderHelper = providerHelper;
+            mVersionHeader = versionHeader;
+            mData = data;
+            mOutStream = outStream;
         }
 
-       public Builder setProgressable(Progressable progressable) {
+        public Builder setProgressable(Progressable progressable) {
             mProgressable = progressable;
             return this;
         }
@@ -147,12 +151,12 @@ public class PgpSignEncrypt {
         }
 
         public Builder setEncryptionMasterKeyIds(long[] encryptionMasterKeyIds) {
-            this.mEncryptionMasterKeyIds = encryptionMasterKeyIds;
+            mEncryptionMasterKeyIds = encryptionMasterKeyIds;
             return this;
         }
 
         public Builder setSymmetricPassphrase(String symmetricPassphrase) {
-            this.mSymmetricPassphrase = symmetricPassphrase;
+            mSymmetricPassphrase = symmetricPassphrase;
             return this;
         }
 
@@ -182,11 +186,13 @@ public class PgpSignEncrypt {
         }
 
         /**
+         * Also encrypt with the signing keyring
+         *
          * @param encryptToSigner
          * @return
          */
         public Builder setEncryptToSigner(boolean encryptToSigner) {
-            this.mEncryptToSigner = encryptToSigner;
+            mEncryptToSigner = encryptToSigner;
             return this;
         }
 
@@ -197,7 +203,12 @@ public class PgpSignEncrypt {
          * @return
          */
         public Builder setCleartextInput(boolean cleartextInput) {
-            this.mCleartextInput = cleartextInput;
+            mCleartextInput = cleartextInput;
+            return this;
+        }
+
+        public Builder setOriginalFilename(String originalFilename) {
+            mOriginalFilename = originalFilename;
             return this;
         }
 
@@ -277,7 +288,7 @@ public class PgpSignEncrypt {
             }
             try {
                 signingKey = signingKeyRing.getSigningSubKey();
-            } catch(PgpGeneralException e) {
+            } catch (PgpGeneralException e) {
                 throw new NoSigningKeyException();
             }
 
@@ -293,7 +304,7 @@ public class PgpSignEncrypt {
                 throw new KeyExtractionException();
             }
         }
-        updateProgress(R.string.progress_preparing_streams, 5, 100);
+        updateProgress(R.string.progress_preparing_streams, 2, 100);
 
         /* Initialize PGPEncryptedDataGenerator for later usage */
         PGPEncryptedDataGenerator cPk = null;
@@ -334,13 +345,13 @@ public class PgpSignEncrypt {
         PGPSignatureGenerator signatureGenerator = null;
         PGPV3SignatureGenerator signatureV3Generator = null;
         if (enableSignature) {
-            updateProgress(R.string.progress_preparing_signature, 10, 100);
+            updateProgress(R.string.progress_preparing_signature, 4, 100);
 
             try {
                 boolean cleartext = mCleartextInput && mEnableAsciiArmorOutput && !enableEncryption;
                 if (mSignatureForceV3) {
                     signatureV3Generator = signingKey.getV3SignatureGenerator(
-                            mSignatureHashAlgorithm,cleartext);
+                            mSignatureHashAlgorithm, cleartext);
                 } else {
                     signatureGenerator = signingKey.getSignatureGenerator(
                             mSignatureHashAlgorithm, cleartext);
@@ -351,12 +362,15 @@ public class PgpSignEncrypt {
             }
         }
 
+        ProgressScaler progressScaler =
+                new ProgressScaler(mProgressable, 8, 95, 100);
         PGPCompressedDataGenerator compressGen = null;
         OutputStream pOut;
         OutputStream encryptionOut = null;
         BCPGOutputStream bcpgOut;
         if (enableEncryption) {
             /* actual encryption */
+            updateProgress(R.string.progress_encrypting, 8, 100);
 
             encryptionOut = cPk.open(out, new byte[1 << 16]);
 
@@ -376,30 +390,29 @@ public class PgpSignEncrypt {
             }
 
             PGPLiteralDataGenerator literalGen = new PGPLiteralDataGenerator();
-            // file name not needed, so empty string
-            pOut = literalGen.open(bcpgOut, PGPLiteralData.BINARY, "", new Date(),
+            pOut = literalGen.open(bcpgOut, PGPLiteralData.BINARY, mOriginalFilename, new Date(),
                     new byte[1 << 16]);
-            updateProgress(R.string.progress_encrypting, 20, 100);
 
-            long progress = 0;
-            int n;
+            long alreadyWritten = 0;
+            int length;
             byte[] buffer = new byte[1 << 16];
             InputStream in = mData.getInputStream();
-            while ((n = in.read(buffer)) > 0) {
-                pOut.write(buffer, 0, n);
+            while ((length = in.read(buffer)) > 0) {
+                pOut.write(buffer, 0, length);
 
                 // update signature buffer if signature is requested
                 if (enableSignature) {
                     if (mSignatureForceV3) {
-                        signatureV3Generator.update(buffer, 0, n);
+                        signatureV3Generator.update(buffer, 0, length);
                     } else {
-                        signatureGenerator.update(buffer, 0, n);
+                        signatureGenerator.update(buffer, 0, length);
                     }
                 }
 
-                progress += n;
-                if (mData.getSize() != 0) {
-                    updateProgress((int) (20 + (95 - 20) * progress / mData.getSize()), 100);
+                alreadyWritten += length;
+                if (mData.getSize() > 0) {
+                    long progress = 100 * alreadyWritten / mData.getSize();
+                    progressScaler.setProgress((int) progress, 100);
                 }
             }
 
@@ -407,7 +420,7 @@ public class PgpSignEncrypt {
         } else if (enableSignature && mCleartextInput && mEnableAsciiArmorOutput) {
             /* cleartext signature: sign-only of ascii text */
 
-            updateProgress(R.string.progress_signing, 40, 100);
+            updateProgress(R.string.progress_signing, 8, 100);
 
             // write -----BEGIN PGP SIGNED MESSAGE-----
             armorOut.beginClearText(mSignatureHashAlgorithm);
@@ -422,6 +435,7 @@ public class PgpSignEncrypt {
                 processLine(reader.readLine(), armorOut, signatureGenerator);
             }
 
+            // TODO: progress: fake annealing?
             while (true) {
                 String line = reader.readLine();
 
@@ -449,7 +463,7 @@ public class PgpSignEncrypt {
         } else if (enableSignature && !mCleartextInput) {
             /* sign-only binary (files/data stream) */
 
-            updateProgress(R.string.progress_signing, 40, 100);
+            updateProgress(R.string.progress_signing, 8, 100);
 
             InputStream in = mData.getInputStream();
 
@@ -467,19 +481,25 @@ public class PgpSignEncrypt {
             }
 
             PGPLiteralDataGenerator literalGen = new PGPLiteralDataGenerator();
-            // file name not needed, so empty string
-            pOut = literalGen.open(bcpgOut, PGPLiteralData.BINARY, "", new Date(),
+            pOut = literalGen.open(bcpgOut, PGPLiteralData.BINARY, mOriginalFilename, new Date(),
                     new byte[1 << 16]);
 
+            long alreadyWritten = 0;
+            int length;
             byte[] buffer = new byte[1 << 16];
-            int n;
-            while ((n = in.read(buffer)) > 0) {
-                pOut.write(buffer, 0, n);
+            while ((length = in.read(buffer)) > 0) {
+                pOut.write(buffer, 0, length);
 
                 if (mSignatureForceV3) {
-                    signatureV3Generator.update(buffer, 0, n);
+                    signatureV3Generator.update(buffer, 0, length);
                 } else {
-                    signatureGenerator.update(buffer, 0, n);
+                    signatureGenerator.update(buffer, 0, length);
+                }
+
+                alreadyWritten += length;
+                if (mData.getSize() > 0) {
+                    long progress = 100 * alreadyWritten / mData.getSize();
+                    progressScaler.setProgress((int) progress, 100);
                 }
             }
 

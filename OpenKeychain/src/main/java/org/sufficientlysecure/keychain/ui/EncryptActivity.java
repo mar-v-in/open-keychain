@@ -267,20 +267,22 @@ public class EncryptActivity extends DrawerActivity implements EncryptActivityIn
         if (isContentMessage()) {
             data.putInt(KeychainIntentService.TARGET, KeychainIntentService.IO_BYTES);
             data.putByteArray(KeychainIntentService.ENCRYPT_MESSAGE_BYTES, mMessage.getBytes());
+
+            data.putInt(KeychainIntentService.ENCRYPT_COMPRESSION_ID,
+                    Preferences.getPreferences(this).getDefaultMessageCompression());
         } else {
             data.putInt(KeychainIntentService.SOURCE, KeychainIntentService.IO_URIS);
             data.putParcelableArrayList(KeychainIntentService.ENCRYPT_INPUT_URIS, mInputUris);
 
             data.putInt(KeychainIntentService.TARGET, KeychainIntentService.IO_URIS);
             data.putParcelableArrayList(KeychainIntentService.ENCRYPT_OUTPUT_URIS, mOutputUris);
+
+            data.putInt(KeychainIntentService.ENCRYPT_COMPRESSION_ID,
+                    Preferences.getPreferences(this).getDefaultFileCompression());
         }
 
         // Always use armor for messages
         data.putBoolean(KeychainIntentService.ENCRYPT_USE_ASCII_ARMOR, mUseArmor || isContentMessage());
-
-        // TODO: Only default compression right now...
-        int compressionId = Preferences.getPreferences(this).getDefaultMessageCompression();
-        data.putInt(KeychainIntentService.ENCRYPT_COMPRESSION_ID, compressionId);
 
         if (isModeSymmetric()) {
             Log.d(Constants.TAG, "Symmetric encryption enabled!");
@@ -425,7 +427,6 @@ public class EncryptActivity extends DrawerActivity implements EncryptActivityIn
 
         if (isModeSymmetric()) {
             // symmetric encryption checks
-
 
             if (mPassphrase == null) {
                 Notify.showNotify(this, R.string.passphrases_do_not_match, Notify.Style.ERROR);

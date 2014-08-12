@@ -25,6 +25,7 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 
 import org.openintents.openpgp.IOpenPgpService;
+import org.openintents.openpgp.OpenPgpMetadata;
 import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.OpenPgpSignatureResult;
 import org.openintents.openpgp.util.OpenPgpApi;
@@ -225,6 +226,10 @@ public class OpenPgpService extends RemoteService {
                                       boolean sign) {
         try {
             boolean asciiArmor = data.getBooleanExtra(OpenPgpApi.EXTRA_REQUEST_ASCII_ARMOR, true);
+            String originalFilename = data.getStringExtra(OpenPgpApi.EXTRA_ORIGINAL_FILENAME);
+            if (originalFilename == null) {
+                originalFilename = "";
+            }
 
             long[] keyIds;
             if (data.hasExtra(OpenPgpApi.EXTRA_KEY_IDS)) {
@@ -270,7 +275,8 @@ public class OpenPgpService extends RemoteService {
                 builder.setEnableAsciiArmorOutput(asciiArmor)
                         .setCompressionId(accSettings.getCompression())
                         .setSymmetricEncryptionAlgorithm(accSettings.getEncryptionAlgorithm())
-                        .setEncryptionMasterKeyIds(keyIds);
+                        .setEncryptionMasterKeyIds(keyIds)
+                        .setOriginalFilename(originalFilename);
 
                 if (sign) {
                     String passphrase;
@@ -326,7 +332,8 @@ public class OpenPgpService extends RemoteService {
     }
 
     private Intent decryptAndVerifyImpl(Intent data, ParcelFileDescriptor input,
-                                        ParcelFileDescriptor output, Set<Long> allowedKeyIds) {
+                                        ParcelFileDescriptor output, Set<Long> allowedKeyIds,
+                                        boolean decryptMetadataOnly) {
         try {
             // Get Input- and OutputStream from ParcelFileDescriptor
             InputStream is = new ParcelFileDescriptor.AutoCloseInputStream(input);
@@ -353,7 +360,8 @@ public class OpenPgpService extends RemoteService {
                 builder.setAllowSymmetricDecryption(false) // no support for symmetric encryption
                         .setAllowedKeyIds(allowedKeyIds) // allow only private keys associated with
                                 // accounts of this app
-                        .setPassphrase(passphrase);
+                        .setPassphrase(passphrase)
+                        .setDecryptMetadataOnly(decryptMetadataOnly);
 
                 PgpDecryptVerifyResult decryptVerifyResult;
                 try {
@@ -401,6 +409,11 @@ public class OpenPgpService extends RemoteService {
 
                         result.putExtra(OpenPgpApi.RESULT_INTENT, pi);
                     }
+                }
+
+                OpenPgpMetadata metadata = decryptVerifyResult.getDecryptMetadata();
+                if (metadata != null) {
+                    result.putExtra(OpenPgpApi.RESULT_METADATA, metadata);
                 }
 
             } finally {
@@ -507,7 +520,10 @@ public class OpenPgpService extends RemoteService {
         }
 
         // version code is required and needs to correspond to version code of service!
-        if (data.getIntExtra(OpenPgpApi.EXTRA_API_VERSION, -1) != OpenPgpApi.API_VERSION) {
+        // History of versions in org.openintents.openpgp.util.OpenPgpApi
+        // we support 3 and 4
+        if (data.getIntExtra(OpenPgpApi.EXTRA_API_VERSION, -1) != 3
+                || data.getIntExtra(OpenPgpApi.EXTRA_API_VERSION, -1) != 4) {
             Intent result = new Intent();
             OpenPgpError error = new OpenPgpError
                     (OpenPgpError.INCOMPATIBLE_API_VERSIONS, "Incompatible API versions!");
@@ -558,7 +574,13 @@ public class OpenPgpService extends RemoteService {
                 Set<Long> allowedKeyIds =
                         mProviderHelper.getAllKeyIdsForApp(
                                 ApiAccounts.buildBaseUri(currentPkg));
-                return decryptAndVerifyImpl(data, input, output, allowedKeyIds);
+                return decryptAndVerifyImpl(data, input, output, allowedKeyIds, false);
+            } else if (OpenPgpApi.ACTION_DECRYPT_METADATA.equals(action)) {
+                String currentPkg = getCurrentCallingPackage();
+                Set<Long> allowedKeyIds =
+                        mProviderHelper.getAllKeyIdsForApp(
+                                ApiAccounts.buildBaseUri(currentPkg));
+                return decryptAndVerifyImpl(data, input, output, allowedKeyIds, true);
             } else if (OpenPgpApi.ACTION_GET_KEY.equals(action)) {
                 return getKeyImpl(data);
             } else if (OpenPgpApi.ACTION_GET_KEY_IDS.equals(action)) {
