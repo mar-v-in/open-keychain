@@ -3,7 +3,6 @@ package org.sufficientlysecure.keychain.provider;
 import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
-import org.sufficientlysecure.keychain.provider.KeychainContract;
 
 public class KeyRingInfoEntry implements Parcelable {
 
