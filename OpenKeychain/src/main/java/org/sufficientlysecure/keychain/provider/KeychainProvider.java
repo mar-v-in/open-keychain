@@ -275,6 +275,9 @@ public class KeychainProvider extends ContentProvider {
                         "kE." + Keys.KEY_ID + " AS " + KeyRings.HAS_ENCRYPT);
                 projectionMap.put(KeyRings.HAS_SIGN,
                         "kS." + Keys.KEY_ID + " AS " + KeyRings.HAS_SIGN);
+                projectionMap.put(KeyRings.IS_EXPIRED,
+                        "(" + Tables.KEYS + "." + Keys.EXPIRY + " < " + new Date().getTime() / 1000 + ") AS "
+                            + KeyRings.IS_EXPIRED);
                 projectionMap.put(KeyRings.VISIBLE, Tables.KEYRING_INFO + "." + KeyRings.VISIBLE);
                 projectionMap.put(KeyRings.SOURCE, Tables.KEYRING_INFO + "." + KeyRings.SOURCE);
                 projectionMap.put(KeyRings.REASON, Tables.KEYRING_INFO + "." + KeyRings.REASON);
@@ -540,6 +543,7 @@ public class KeychainProvider extends ContentProvider {
 
                 break;
             }
+
             case API_APPS:
                 qb.setTables(Tables.API_APPS);
 
