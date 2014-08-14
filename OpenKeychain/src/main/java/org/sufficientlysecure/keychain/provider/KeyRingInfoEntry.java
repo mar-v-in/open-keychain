@@ -19,11 +19,43 @@ public class KeyRingInfoEntry implements Parcelable {
         }
     };
 
-    private final boolean visible;
-    private final int reason;
-    private final String source;
-    private final long importDate;
-    private final long updateDate;
+    /**
+     * Default for old keyrings or if not specified
+     */
+    public static final int REASON_UNKNOWN = 0;
+
+    /**
+     * Downloaded in background using a contacts email address
+     */
+    public static final int REASON_AUTOMATIC = 1;
+
+    /**
+     * Imported from a file (via sdcard or email), from clipboard or from a keyserver using the add key dialog
+     */
+    public static final int REASON_MANUALLY = 2;
+
+    /**
+     * Imported from a keyserver using a secondary source as input (QR or NFC)
+     */
+    public static final int REASON_BY_INPUT = 3;
+
+    private boolean visible;
+    private int reason;
+    private String source;
+    private long importDate;
+    private long updateDate;
+
+    public KeyRingInfoEntry() {
+        this("");
+    }
+
+    public KeyRingInfoEntry(String keyServer) {
+        this(true, REASON_UNKNOWN, keyServer);
+    }
+
+    public KeyRingInfoEntry(boolean visible, int reason, String source) {
+        this(visible, reason, source, System.currentTimeMillis(), System.currentTimeMillis());
+    }
 
     public KeyRingInfoEntry(boolean visible, int reason, String source, long importDate, long updateDate) {
         this.updateDate = updateDate;
@@ -41,6 +73,38 @@ public class KeyRingInfoEntry implements Parcelable {
         values.put(KeychainContract.KeyRingInfo.IMPORT_DATE, importDate);
         values.put(KeychainContract.KeyRingInfo.UPDATE_DATE, updateDate);
         return values;
+    }
+
+    public void resetUpdateDate() {
+        updateDate = System.currentTimeMillis();
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public int getReason() {
+        return reason;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public long getImportDate() {
+        return importDate;
+    }
+
+    public long getUpdateDate() {
+        return updateDate;
     }
 
     @Override

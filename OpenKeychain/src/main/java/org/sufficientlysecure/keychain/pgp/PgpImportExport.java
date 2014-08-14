@@ -124,7 +124,7 @@ public class PgpImportExport {
     }
 
     /** Imports keys from given data. If keyIds is given only those are imported */
-    public ImportKeyResult importKeyRings(List<ParcelableKeyRing> entries, KeyRingInfoEntry info) {
+    public ImportKeyResult importKeyRings(List<ParcelableKeyRing> entries, List<KeyRingInfoEntry> infos) {
 
         updateProgress(R.string.progress_importing, 0, 100);
 
@@ -138,13 +138,15 @@ public class PgpImportExport {
 
         int position = 0;
         int progSteps = 100 / entries.size();
-        for (ParcelableKeyRing entry : entries) {
+        for (int i = 0; i < entries.size(); i++) {
+            ParcelableKeyRing entry = entries.get(i);
+            KeyRingInfoEntry info = infos != null && infos.size() > i ? infos.get(i) : new KeyRingInfoEntry();
             try {
                 UncachedKeyRing key = UncachedKeyRing.decodeFromData(entry.getBytes());
 
                 String expectedFp = entry.getExpectedFingerprint();
-                if(expectedFp != null) {
-                    if(!PgpKeyHelper.convertFingerprintToHex(key.getFingerprint()).equals(expectedFp)) {
+                if (expectedFp != null) {
+                    if (!PgpKeyHelper.convertFingerprintToHex(key.getFingerprint()).equals(expectedFp)) {
                         Log.d(Constants.TAG, "fingerprint: " + PgpKeyHelper.convertFingerprintToHex(key.getFingerprint()));
                         Log.d(Constants.TAG, "expected fingerprint: " + expectedFp);
                         Log.e(Constants.TAG, "Actual key fingerprint is not the same as expected!");
@@ -158,10 +160,10 @@ public class PgpImportExport {
                 SaveKeyringResult result;
                 if (key.isSecret()) {
                     result = mProviderHelper.saveSecretKeyRing(key, info,
-                            new ProgressScaler(mProgressable, position, (position+1)*progSteps, 100));
+                            new ProgressScaler(mProgressable, position, (position + 1) * progSteps, 100));
                 } else {
                     result = mProviderHelper.savePublicKeyRing(key, info,
-                            new ProgressScaler(mProgressable, position, (position+1)*progSteps, 100));
+                            new ProgressScaler(mProgressable, position, (position + 1) * progSteps, 100));
                 }
                 if (!result.success()) {
                     badKeys += 1;

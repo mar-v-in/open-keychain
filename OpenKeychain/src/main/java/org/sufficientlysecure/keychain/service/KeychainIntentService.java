@@ -49,6 +49,7 @@ import org.sufficientlysecure.keychain.pgp.Progressable;
 import org.sufficientlysecure.keychain.pgp.UncachedKeyRing;
 import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralException;
 import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralMsgIdException;
+import org.sufficientlysecure.keychain.provider.KeyRingInfoEntry;
 import org.sufficientlysecure.keychain.provider.KeychainContract.KeyRings;
 import org.sufficientlysecure.keychain.provider.KeychainDatabase;
 import org.sufficientlysecure.keychain.provider.ProviderHelper;
@@ -141,6 +142,7 @@ public class KeychainIntentService extends IntentService
 
     // import key
     public static final String IMPORT_KEY_LIST = "import_key_list";
+    public static final String IMPORT_KEY_INFO_LIST = "import_key_info_list";
 
     // export key
     public static final String EXPORT_OUTPUT_STREAM = "export_output_stream";
@@ -450,9 +452,18 @@ public class KeychainIntentService extends IntentService
                             new FileImportCache<ParcelableKeyRing>(this);
                     entries = cache.readCacheIntoList();
                 }
+                List<KeyRingInfoEntry> infos;
+                if (data.containsKey(IMPORT_KEY_INFO_LIST)) {
+                    infos = data.getParcelableArrayList(IMPORT_KEY_INFO_LIST);
+                    for (KeyRingInfoEntry info : infos) {
+                        info.resetUpdateDate(); // Update date is now!
+                    }
+                } else {
+                    infos = null;
+                }
 
                 PgpImportExport pgpImportExport = new PgpImportExport(this, this);
-                ImportKeyResult result = pgpImportExport.importKeyRings(entries, null);
+                ImportKeyResult result = pgpImportExport.importKeyRings(entries, infos);
 
                 Bundle resultData = new Bundle();
                 resultData.putParcelable(RESULT_IMPORT, result);
@@ -554,17 +565,22 @@ public class KeychainIntentService extends IntentService
         } else if (ACTION_DOWNLOAD_AND_IMPORT_KEYS.equals(action) || ACTION_IMPORT_KEYBASE_KEYS.equals(action)) {
             try {
                 ArrayList<ImportKeysListEntry> entries = data.getParcelableArrayList(DOWNLOAD_KEY_LIST);
+                ArrayList<KeyRingInfoEntry> originalInfos = data.containsKey(IMPORT_KEY_INFO_LIST) ?
+                        data.<KeyRingInfoEntry>getParcelableArrayList(IMPORT_KEY_INFO_LIST) : null;
 
                 // this downloads the keys and places them into the ImportKeysListEntry entries
                 String keyServer = data.getString(DOWNLOAD_KEY_SERVER);
 
+                ArrayList<KeyRingInfoEntry> infos = new ArrayList<KeyRingInfoEntry>();
                 ArrayList<ParcelableKeyRing> keyRings = new ArrayList<ParcelableKeyRing>(entries.size());
-                for (ImportKeysListEntry entry : entries) {
+                for (int i = 0; i < entries.size(); i++) {
+                    ImportKeysListEntry entry = entries.get(i);
 
                     Keyserver server;
                     if (entry.getOrigin() == null) {
                         server = new HkpKeyserver(keyServer);
-                    } else if (KeybaseKeyserver.ORIGIN.equals(entry.getOrigin())) {
+                    } else if (KeybaseKeyserver.ORIGIN.equals(entry.getOrigin())
+                            || ACTION_IMPORT_KEYBASE_KEYS.equals(action)) {
                         server = new KeybaseKeyserver();
                     } else {
                         server = new HkpKeyserver(entry.getOrigin());
@@ -583,6 +599,12 @@ public class KeychainIntentService extends IntentService
                     // save key bytes in entry object for doing the
                     // actual import afterwards
                     keyRings.add(new ParcelableKeyRing(downloadedKeyBytes, entry.getFingerprintHex()));
+
+                    KeyRingInfoEntry info = originalInfos != null && originalInfos.size() > i ?
+                            originalInfos.get(i) : new KeyRingInfoEntry();
+                    // We overwrite the source if we know the real one here, just to be sure
+                    info.setSource(entry.getOrigin() == null ? server.toString() : entry.getOrigin());
+                    infos.add(info);
                 }
 
                 Intent importIntent = new Intent(this, KeychainIntentService.class);
@@ -591,6 +613,7 @@ public class KeychainIntentService extends IntentService
                 Bundle importData = new Bundle();
                 // This is not going through binder, nothing to fear of
                 importData.putParcelableArrayList(IMPORT_KEY_LIST, keyRings);
+                importData.putParcelableArrayList(IMPORT_KEY_INFO_LIST, infos);
                 importIntent.putExtra(EXTRA_DATA, importData);
                 importIntent.putExtra(EXTRA_MESSENGER, mMessenger);
 
