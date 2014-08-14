@@ -84,8 +84,8 @@
   <string name="label_algorithm">Algorithme</string>
   <string name="label_ascii_armor">Fichier ASCII Armor</string>
   <string name="label_file_ascii_armor">Fichier : ASCII Armor</string>
-  <string name="label_conceal_pgp_application">Informez les autres de votre utilisation d\'OpenKeychain</string>
-  <string name="label_conceal_pgp_application_summary">Ajoute « OpenKeychain v2.7 » aux signatures OpenPGP, aux cryptogrammes, et aux clefs exportées</string>
+  <string name="label_write_version_header">Informez les autres de votre utilisation d\'OpenKeychain</string>
+  <string name="label_write_version_header_summary">Ajoute « OpenKeychain v2.7 » aux signatures OpenPGP, aux cryptogrammes, et aux clefs exportées</string>
   <string name="label_asymmetric_from">De :</string>
   <string name="label_to">À :</string>
   <string name="label_delete_after_encryption">Fichier : supprimer après chiffrement</string>
@@ -276,8 +276,8 @@
   <string name="progress_verifying_integrity">vérification de l\'intégrité...</string>
   <string name="progress_deleting_securely">suppression sûre de « %s »...</string>
   <!--action strings-->
-  <string name="hint_public_keys">Nom/courriel/ ID clef...</string>
-  <string name="hint_keybase_search">Nom/nom d\'utilisateur keybase.io...</string>
+  <string name="hint_keyserver_search_hint">Nom/courriel/ ID clef...</string>
+  <string name="hint_keybase_search_hint">Nom/nom d\'utilisateur keybase.io...</string>
   <!--key bit length selections-->
   <string name="key_size_512">512</string>
   <string name="key_size_768">768</string>

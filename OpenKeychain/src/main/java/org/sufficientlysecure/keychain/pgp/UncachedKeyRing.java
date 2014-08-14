@@ -36,6 +36,7 @@ import org.sufficientlysecure.keychain.pgp.exception.PgpGeneralException;
 import org.sufficientlysecure.keychain.service.OperationResultParcel.LogLevel;
 import org.sufficientlysecure.keychain.service.OperationResultParcel.LogType;
 import org.sufficientlysecure.keychain.service.OperationResultParcel.OperationLog;
+import org.sufficientlysecure.keychain.service.OperationResults;
 import org.sufficientlysecure.keychain.util.IterableIterator;
 import org.sufficientlysecure.keychain.util.Log;
 
@@ -44,6 +45,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Iterator;
@@ -116,6 +118,10 @@ public class UncachedKeyRing {
 
     public byte[] getFingerprint() {
         return mRing.getPublicKey().getFingerprint();
+    }
+
+    public int getVersion() {
+        return mRing.getPublicKey().getVersion();
     }
 
     public static UncachedKeyRing decodeFromData(byte[] data)
@@ -204,7 +210,9 @@ public class UncachedKeyRing {
 
     public void encodeArmored(OutputStream out, String version) throws IOException {
         ArmoredOutputStream aos = new ArmoredOutputStream(out);
-        aos.setHeader("Version", version);
+        if (version != null) {
+            aos.setHeader("Version", version);
+        }
         aos.write(mRing.getEncoded());
         aos.close();
     }
@@ -238,6 +246,12 @@ public class UncachedKeyRing {
         log.add(LogLevel.START, isSecret() ? LogType.MSG_KC_SECRET : LogType.MSG_KC_PUBLIC,
                 indent, PgpKeyHelper.convertKeyIdToHex(getMasterKeyId()));
         indent += 1;
+
+        // do not accept v3 keys
+        if (getVersion() <= 3) {
+            log.add(LogLevel.ERROR, LogType.MSG_KC_V3_KEY, indent);
+            return null;
+        }
 
         final Date now = new Date();
 
@@ -679,7 +693,8 @@ public class UncachedKeyRing {
 
         long masterKeyId = other.getMasterKeyId();
 
-        if (getMasterKeyId() != masterKeyId) {
+        if (getMasterKeyId() != masterKeyId
+                || !Arrays.equals(getFingerprint(), other.getFingerprint())) {
             log.add(LogLevel.ERROR, LogType.MSG_MG_HETEROGENEOUS, indent);
             return null;
         }

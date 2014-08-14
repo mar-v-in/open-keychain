@@ -86,6 +86,10 @@ public class ProviderHelper {
         this(context, new OperationLog(), 0);
     }
 
+    public ProviderHelper(Context context, OperationLog log) {
+        this(context, log, 0);
+    }
+
     public ProviderHelper(Context context, OperationLog log, int indent) {
         mContext = context;
         mContentResolver = context.getContentResolver();
@@ -871,7 +875,10 @@ public class ProviderHelper {
         UncachedKeyRing keyRing = UncachedKeyRing.decodeFromData(data);
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        keyRing.encodeArmored(bos, PgpHelper.getFullVersion(mContext));
+        String version = PgpHelper.getVersionForHeader(mContext);
+        if (version != null) {
+            keyRing.encodeArmored(bos, version);
+        }
         String armoredKey = bos.toString("UTF-8");
 
         Log.d(Constants.TAG, "armoredKey:" + armoredKey);
@@ -934,7 +941,7 @@ public class ProviderHelper {
         mContentResolver.insert(uri, contentValueForApiAccounts(accSettings));
     }
 
-    public void updateApiAccount(AccountSettings accSettings, Uri uri) {
+    public void updateApiAccount(Uri uri, AccountSettings accSettings) {
         if (mContentResolver.update(uri, contentValueForApiAccounts(accSettings), null,
                 null) <= 0) {
             throw new RuntimeException();

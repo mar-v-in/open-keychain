@@ -119,11 +119,8 @@ public class PreferencesActivity extends PreferenceActivity {
             initializeAsciiArmor(
                     (CheckBoxPreference) findPreference(Constants.Pref.DEFAULT_ASCII_ARMOR));
 
-            initializeForceV3Signatures(
-                    (CheckBoxPreference) findPreference(Constants.Pref.FORCE_V3_SIGNATURES));
-
-            initializeConcealPgpApplication(
-                    (CheckBoxPreference) findPreference(Constants.Pref.CONCEAL_PGP_APPLICATION));
+            initializeWriteVersionHeader(
+                    (CheckBoxPreference) findPreference(Constants.Pref.WRITE_VERSION_HEADER));
 
         } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
             // Load the legacy preferences headers
@@ -266,11 +263,8 @@ public class PreferencesActivity extends PreferenceActivity {
             initializeAsciiArmor(
                     (CheckBoxPreference) findPreference(Constants.Pref.DEFAULT_ASCII_ARMOR));
 
-            initializeForceV3Signatures(
-                    (CheckBoxPreference) findPreference(Constants.Pref.FORCE_V3_SIGNATURES));
-
-            initializeConcealPgpApplication(
-                    (CheckBoxPreference) findPreference(Constants.Pref.CONCEAL_PGP_APPLICATION));
+            initializeWriteVersionHeader(
+                    (CheckBoxPreference) findPreference(Constants.Pref.WRITE_VERSION_HEADER));
         }
     }
 
@@ -323,10 +317,10 @@ public class PreferencesActivity extends PreferenceActivity {
 
     private static void initializeHashAlgorithm
             (final IntegerListPreference mHashAlgorithm, int[] valueIds, String[] entries, String[] values) {
-        valueIds = new int[]{HashAlgorithmTags.MD5, HashAlgorithmTags.RIPEMD160,
+        valueIds = new int[]{HashAlgorithmTags.RIPEMD160,
                 HashAlgorithmTags.SHA1, HashAlgorithmTags.SHA224, HashAlgorithmTags.SHA256,
                 HashAlgorithmTags.SHA384, HashAlgorithmTags.SHA512,};
-        entries = new String[]{"MD5", "RIPEMD-160", "SHA-1", "SHA-224", "SHA-256", "SHA-384",
+        entries = new String[]{"RIPEMD-160", "SHA-1", "SHA-224", "SHA-256", "SHA-384",
                 "SHA-512",};
         values = new String[valueIds.length];
         for (int i = 0; i < values.length; ++i) {
@@ -392,24 +386,12 @@ public class PreferencesActivity extends PreferenceActivity {
         });
     }
 
-    private static void initializeForceV3Signatures(final CheckBoxPreference mForceV3Signatures) {
-        mForceV3Signatures.setChecked(sPreferences.getForceV3Signatures());
-        mForceV3Signatures
-                .setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                    public boolean onPreferenceChange(Preference preference, Object newValue) {
-                        mForceV3Signatures.setChecked((Boolean) newValue);
-                        sPreferences.setForceV3Signatures((Boolean) newValue);
-                        return false;
-                    }
-                });
-    }
-
-    private static void initializeConcealPgpApplication(final CheckBoxPreference mConcealPgpApplication) {
-        mConcealPgpApplication.setChecked(sPreferences.getConcealPgpApplication());
-        mConcealPgpApplication.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+    private static void initializeWriteVersionHeader(final CheckBoxPreference mWriteVersionHeader) {
+        mWriteVersionHeader.setChecked(sPreferences.getWriteVersionHeader());
+        mWriteVersionHeader.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             public boolean onPreferenceChange(Preference preference, Object newValue) {
-                mConcealPgpApplication.setChecked((Boolean) newValue);
-                sPreferences.setConcealPgpApplication((Boolean) newValue);
+                mWriteVersionHeader.setChecked((Boolean) newValue);
+                sPreferences.setWriteVersionHeader((Boolean) newValue);
                 return false;
             }
         });

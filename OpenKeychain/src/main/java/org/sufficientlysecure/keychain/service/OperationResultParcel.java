@@ -289,6 +289,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_IS_SUCCESS (R.string.msg_is_success),
 
         // keyring canonicalization
+        MSG_KC_V3_KEY (R.string.msg_kc_v3_key),
         MSG_KC_PUBLIC (R.string.msg_kc_public),
         MSG_KC_SECRET (R.string.msg_kc_secret),
         MSG_KC_FATAL_NO_UID (R.string.msg_kc_fatal_no_uid),

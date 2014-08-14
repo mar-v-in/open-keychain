@@ -130,16 +130,6 @@ public class Preferences {
         editor.commit();
     }
 
-    public boolean getForceV3Signatures() {
-        return mSharedPreferences.getBoolean(Constants.Pref.FORCE_V3_SIGNATURES, false);
-    }
-
-    public void setForceV3Signatures(boolean value) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Constants.Pref.FORCE_V3_SIGNATURES, value);
-        editor.commit();
-    }
-
     public boolean isFirstTime() {
         return mSharedPreferences.getBoolean(Constants.Pref.FIRST_TIME, true);
     }
@@ -203,15 +193,20 @@ public class Preferences {
         if (mSharedPreferences.getInt(Constants.Pref.DEFAULT_FILE_COMPRESSION, 0) == 0x21070001) {
             setDefaultFileCompression(CompressionAlgorithmTags.UNCOMPRESSED);
         }
+
+        // migrate away from MD5
+        if (mSharedPreferences.getInt(Constants.Pref.DEFAULT_HASH_ALGORITHM, 0) == HashAlgorithmTags.MD5) {
+            setDefaultHashAlgorithm(HashAlgorithmTags.SHA512);
+        }
     }
 
-    public void setConcealPgpApplication(boolean conceal) {
+    public void setWriteVersionHeader(boolean conceal) {
         SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Constants.Pref.CONCEAL_PGP_APPLICATION, conceal);
+        editor.putBoolean(Constants.Pref.WRITE_VERSION_HEADER, conceal);
         editor.commit();
     }
 
-    public boolean getConcealPgpApplication() {
-        return mSharedPreferences.getBoolean(Constants.Pref.CONCEAL_PGP_APPLICATION, false);
+    public boolean getWriteVersionHeader() {
+        return mSharedPreferences.getBoolean(Constants.Pref.WRITE_VERSION_HEADER, false);
     }
 }
