@@ -254,7 +254,7 @@ public class ContactHelper {
 
     public static Uri dataUriFromContactUri(Context context, Uri contactUri) {
         Cursor contactMasterKey = context.getContentResolver().query(contactUri,
-                new String[]{ContactsContract.Data.DATA2}, null, null, null, null);
+                new String[]{ContactsContract.Data.DATA2}, null, null, null);
         if (contactMasterKey != null) {
             if (contactMasterKey.moveToNext()) {
                 return KeychainContract.KeyRings.buildGenericKeyRingUri(contactMasterKey.getLong(0));
@@ -370,7 +370,7 @@ public class ContactHelper {
     private static int findRawContactId(ContentResolver resolver, String fingerprint) {
         int rawContactId = -1;
         Cursor raw = resolver.query(ContactsContract.RawContacts.CONTENT_URI, ID_PROJECTION,
-                ACCOUNT_TYPE_AND_SOURCE_ID_SELECTION, new String[]{Constants.PACKAGE_NAME, fingerprint}, null, null);
+                ACCOUNT_TYPE_AND_SOURCE_ID_SELECTION, new String[]{Constants.PACKAGE_NAME, fingerprint}, null);
         if (raw != null) {
             if (raw.moveToNext()) {
                 rawContactId = raw.getInt(0);
