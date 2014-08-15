@@ -53,6 +53,7 @@ public class ContactSyncAdapterService extends Service {
                                   final SyncResult syncResult) {
             importDone.set(false);
             KeychainApplication.setupAccountAsNeeded(ContactSyncAdapterService.this);
+            ContactHelper.writeKeysToContacts(ContactSyncAdapterService.this);
             EmailKeyHelper.importContacts(getContext(), new Messenger(new Handler(Looper.getMainLooper(),
                     new Handler.Callback() {
                         @Override
@@ -85,10 +86,8 @@ public class ContactSyncAdapterService extends Service {
                     if (!importDone.get()) importDone.wait();
                 } catch (InterruptedException e) {
                     Log.w(Constants.TAG, e);
-                    return;
                 }
             }
-            ContactHelper.writeKeysToContacts(ContactSyncAdapterService.this);
         }
     }
 
