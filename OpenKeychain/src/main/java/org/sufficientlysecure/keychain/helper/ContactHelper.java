@@ -90,9 +90,6 @@ public class ContactHelper {
 
     /**
      * Get emails from AccountManager
-     *
-     * @param context
-     * @return
      */
     private static Set<String> getAccountEmails(Context context) {
         final Account[] accounts = AccountManager.get(context).getAccounts();
@@ -108,10 +105,6 @@ public class ContactHelper {
     /**
      * Search for contact names based on a list of emails (to find out the names of the
      * device owner based on the email addresses from AccountsManager)
-     *
-     * @param context
-     * @param emails
-     * @return
      */
     private static Set<String> getContactNamesFromEmails(Context context, Set<String> emails) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
@@ -120,9 +113,9 @@ public class ContactHelper {
                 ContentResolver resolver = context.getContentResolver();
                 Cursor profileCursor = resolver.query(
                         ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                        new String[]{ContactsContract.CommonDataKinds.Email.ADDRESS,
+                        new String[]{ContactsContract.CommonDataKinds.Email.DATA,
                                 ContactsContract.Contacts.DISPLAY_NAME},
-                        ContactsContract.CommonDataKinds.Email.ADDRESS + "=?",
+                        ContactsContract.CommonDataKinds.Email.DATA + "=?",
                         new String[]{email}, null
                 );
                 if (profileCursor == null) return null;
@@ -147,9 +140,6 @@ public class ContactHelper {
     /**
      * Retrieves the emails of the primary profile contact
      * http://developer.android.com/reference/android/provider/ContactsContract.Profile.html
-     *
-     * @param context
-     * @return
      */
     private static Set<String> getMainProfileContactEmails(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
@@ -158,7 +148,7 @@ public class ContactHelper {
                     Uri.withAppendedPath(
                             ContactsContract.Profile.CONTENT_URI,
                             ContactsContract.Contacts.Data.CONTENT_DIRECTORY),
-                    new String[]{ContactsContract.CommonDataKinds.Email.ADDRESS,
+                    new String[]{ContactsContract.CommonDataKinds.Email.DATA,
                             ContactsContract.CommonDataKinds.Email.IS_PRIMARY},
 
                     // Selects only email addresses
@@ -189,9 +179,6 @@ public class ContactHelper {
     /**
      * Retrieves the name of the primary profile contact
      * http://developer.android.com/reference/android/provider/ContactsContract.Profile.html
-     *
-     * @param context
-     * @return
      */
     private static List<String> getMainProfileContactName(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
