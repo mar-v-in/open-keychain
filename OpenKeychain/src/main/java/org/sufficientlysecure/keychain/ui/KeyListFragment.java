@@ -254,7 +254,7 @@ public class KeyListFragment extends LoaderFragment
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
         // This is called when a new Loader needs to be created. This
         // sample only has one Loader, so we don't care about the ID.
-        Uri baseUri = KeyRings.buildUnifiedKeyRingsUri();
+        Uri baseUri = KeyRings.buildVisibleUnifiedKeyRingsUri();
         String where = null;
         String whereArgs[] = null;
         if (mQuery != null) {

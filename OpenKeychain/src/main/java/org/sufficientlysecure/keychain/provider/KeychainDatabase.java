@@ -228,7 +228,6 @@ public class KeychainDatabase extends SQLiteOpenHelper {
             }
         }
         if (oldVersion <= 2) {
-            // We add the info table, which is new for OpenKeychain 2.9
             db.execSQL(CREATE_KEYRING_INFO);
             // fill default values
             db.execSQL("INSERT OR IGNORE INTO keyring_info (master_key_id) SELECT master_key_id FROM keyrings_public");

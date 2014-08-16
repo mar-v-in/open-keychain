@@ -98,6 +98,7 @@ public class KeychainContract {
     public static final String BASE_DATA = "data";
 
     public static final String PATH_UNIFIED = "unified";
+    public static final String PATH_VISIBLE = "visible";
 
     public static final String PATH_FIND = "find";
     public static final String PATH_BY_EMAIL = "email";
@@ -135,6 +136,10 @@ public class KeychainContract {
 
         public static Uri buildUnifiedKeyRingsUri() {
             return CONTENT_URI.buildUpon().appendPath(PATH_UNIFIED).build();
+        }
+
+        public static Uri buildVisibleUnifiedKeyRingsUri() {
+            return CONTENT_URI.buildUpon().appendPath(PATH_UNIFIED).appendPath(PATH_VISIBLE).build();
         }
 
         public static Uri buildGenericKeyRingUri(long masterKeyId) {

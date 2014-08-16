@@ -35,7 +35,7 @@ public class KeyRingInfoEntry implements Parcelable {
     public static final int REASON_MANUALLY = 2;
 
     /**
-     * Imported from a keyserver using a secondary source as input (QR or NFC)
+     * Imported from a keyserver or directly using a secondary source as input (QR or NFC)
      */
     public static final int REASON_BY_INPUT = 3;
 

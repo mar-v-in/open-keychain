@@ -59,6 +59,7 @@ public class KeychainProvider extends ContentProvider {
     private static final int KEY_RING_CERTS = 205;
     private static final int KEY_RING_CERTS_SPECIFIC = 206;
     private static final int KEY_RING_INFO = 207;
+    private static final int KEY_RINGS_UNIFIED_VISIBLE = 208;
 
     private static final int API_APPS = 301;
     private static final int API_APPS_BY_PACKAGE_NAME = 303;
@@ -84,12 +85,17 @@ public class KeychainProvider extends ContentProvider {
          *
          * <pre>
          * key_rings/unified
+         * key_rings/unified/visible
          * key_rings/public
+         * key_rings/secret
          * </pre>
          */
         matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS
                 + "/" + KeychainContract.PATH_UNIFIED,
                 KEY_RINGS_UNIFIED);
+        matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS
+                + "/" + KeychainContract.PATH_UNIFIED + "/" + KeychainContract.PATH_VISIBLE,
+                KEY_RINGS_UNIFIED_VISIBLE);
         matcher.addURI(authority, KeychainContract.BASE_KEY_RINGS
                 + "/" + KeychainContract.PATH_PUBLIC,
                 KEY_RINGS_PUBLIC);
@@ -116,11 +122,13 @@ public class KeychainProvider extends ContentProvider {
          *
          * <pre>
          * key_rings/_/unified
+         * key_rings/unified/visible
          * key_rings/_/keys
          * key_rings/_/user_ids
          * key_rings/_/public
          * key_rings/_/secret
          * key_rings/_/certs
+         * key_rings/_/info
          * key_rings/_/certs/_/_
          * </pre>
          */
@@ -242,6 +250,7 @@ public class KeychainProvider extends ContentProvider {
         switch (match) {
             case KEY_RING_UNIFIED:
             case KEY_RINGS_UNIFIED:
+            case KEY_RINGS_UNIFIED_VISIBLE:
             case KEY_RINGS_FIND_BY_EMAIL:
             case KEY_RINGS_FIND_BY_SUBKEY: {
                 HashMap<String, String> projectionMap = new HashMap<String, String>();
@@ -357,6 +366,10 @@ public class KeychainProvider extends ContentProvider {
                     case KEY_RING_UNIFIED: {
                         qb.appendWhere(" AND " + Tables.KEYS + "." + Keys.MASTER_KEY_ID + " = ");
                         qb.appendWhereEscapeString(uri.getPathSegments().get(1));
+                        break;
+                    }
+                    case KEY_RINGS_UNIFIED_VISIBLE: {
+                        qb.appendWhere(" AND " + Tables.KEYRING_INFO + "." + KeyRings.VISIBLE + " = 1");
                         break;
                     }
                     case KEY_RINGS_FIND_BY_SUBKEY: {
@@ -654,8 +667,23 @@ public class KeychainProvider extends ContentProvider {
                     break;
 
                 case KEY_RING_INFO:
-                    db.insertOrThrow(Tables.KEYRING_INFO, null, values);
                     keyId = values.getAsLong(KeychainContract.KeyRingInfo.MASTER_KEY_ID);
+                    if (db.insert(Tables.KEYRING_INFO, null, values) == -1) {
+                        // insert failed, update entry
+                        ContentValues v = new ContentValues(values);
+
+                        // initial import date and reason never change
+                        v.remove(KeychainContract.KeyRingInfo.IMPORT_DATE);
+                        v.remove(KeychainContract.KeyRingInfo.REASON);
+
+                        // only show the key on update and never hide it
+                        if (v.containsKey(KeychainContract.KeyRingInfo.VISIBLE)
+                                && v.getAsBoolean(KeychainContract.KeyRingInfo.VISIBLE) == Boolean.FALSE) {
+                            v.remove(KeychainContract.KeyRingInfo.VISIBLE);
+                        }
+                        db.update(Tables.KEYRING_INFO, v, KeychainContract.KeyRingInfo.MASTER_KEY_ID + " = ?",
+                                new String[]{String.valueOf(keyId)});
+                    }
                     break;
 
                 case API_APPS:

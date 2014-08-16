@@ -27,6 +27,7 @@ import org.sufficientlysecure.keychain.keyimport.HkpKeyserver;
 import org.sufficientlysecure.keychain.keyimport.ImportKeysListEntry;
 import org.sufficientlysecure.keychain.keyimport.Keyserver;
 import org.sufficientlysecure.keychain.pgp.PgpKeyHelper;
+import org.sufficientlysecure.keychain.provider.KeyRingInfoEntry;
 import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.service.KeychainIntentService;
 
@@ -96,11 +97,16 @@ public class EmailKeyHelper {
 
     private static void importKeys(Context context, Messenger messenger, List<ImportKeysListEntry> keys) {
         if (!keys.isEmpty()) {
+            ArrayList<KeyRingInfoEntry> infos = new ArrayList<KeyRingInfoEntry>();
+            for (ImportKeysListEntry key : keys) {
+                infos.add(new KeyRingInfoEntry(false, KeyRingInfoEntry.REASON_AUTOMATIC, key.getOrigin()));
+            }
             Intent importIntent = new Intent(context, KeychainIntentService.class);
             importIntent.setAction(KeychainIntentService.ACTION_DOWNLOAD_AND_IMPORT_KEYS);
             Bundle importData = new Bundle();
             importData.putParcelableArrayList(KeychainIntentService.DOWNLOAD_KEY_LIST,
                     new ArrayList<ImportKeysListEntry>(keys));
+            importData.putParcelableArrayList(KeychainIntentService.IMPORT_KEY_INFO_LIST, infos);
             importIntent.putExtra(KeychainIntentService.EXTRA_DATA, importData);
             importIntent.putExtra(KeychainIntentService.EXTRA_MESSENGER, messenger);
 

@@ -43,6 +43,7 @@ import org.sufficientlysecure.keychain.helper.Preferences;
 import org.sufficientlysecure.keychain.keyimport.ImportKeysListEntry;
 import org.sufficientlysecure.keychain.keyimport.ParcelableKeyRing;
 import org.sufficientlysecure.keychain.pgp.PgpKeyHelper;
+import org.sufficientlysecure.keychain.provider.KeyRingInfoEntry;
 import org.sufficientlysecure.keychain.service.KeychainIntentService;
 import org.sufficientlysecure.keychain.service.KeychainIntentServiceHandler;
 import org.sufficientlysecure.keychain.service.OperationResults.ImportKeyResult;
@@ -485,6 +486,7 @@ public class ImportKeysActivity extends ActionBarActivity {
         };
 
         ImportKeysListFragment.LoaderState ls = mListFragment.getLoaderState();
+        boolean isQr = mTabsAdapter.getItem(mViewPager.getCurrentItem()) instanceof ImportKeysQrCodeFragment;
         if (ls instanceof ImportKeysListFragment.BytesLoaderState) {
             Log.d(Constants.TAG, "importKeys started");
 
@@ -495,6 +497,11 @@ public class ImportKeysActivity extends ActionBarActivity {
 
             // fill values for this action
             Bundle data = new Bundle();
+
+            ArrayList<KeyRingInfoEntry> infos = new ArrayList<KeyRingInfoEntry>();
+            infos.add(new KeyRingInfoEntry(true,
+                    isQr ? KeyRingInfoEntry.REASON_BY_INPUT : KeyRingInfoEntry.REASON_MANUALLY, "bytes"));
+            data.putParcelableArrayList(KeychainIntentService.IMPORT_KEY_INFO_LIST, infos);
 
             // get DATA from selected key entries
             ArrayList<ParcelableKeyRing> selectedEntries = mListFragment.getSelectedData();
@@ -537,6 +544,13 @@ public class ImportKeysActivity extends ActionBarActivity {
             // get selected key entries
             ArrayList<ImportKeysListEntry> selectedEntries = mListFragment.getSelectedEntries();
             data.putParcelableArrayList(KeychainIntentService.DOWNLOAD_KEY_LIST, selectedEntries);
+
+            ArrayList<KeyRingInfoEntry> infos = new ArrayList<KeyRingInfoEntry>();
+            for (int i = 0; i < selectedEntries.size(); i++) {
+                infos.add(new KeyRingInfoEntry(true,
+                        isQr ? KeyRingInfoEntry.REASON_BY_INPUT : KeyRingInfoEntry.REASON_MANUALLY, sls.keyserver));
+            }
+            data.putParcelableArrayList(KeychainIntentService.IMPORT_KEY_INFO_LIST, infos);
 
             intent.putExtra(KeychainIntentService.EXTRA_DATA, data);
 
