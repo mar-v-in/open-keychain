@@ -20,8 +20,6 @@ package org.sufficientlysecure.keychain.ui;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Point;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,22 +27,15 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.TextView;
 
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.helper.FileHelper;
-import org.sufficientlysecure.keychain.helper.OtherHelper;
 import org.sufficientlysecure.keychain.provider.TemporaryStorageProvider;
+import org.sufficientlysecure.keychain.ui.adapter.SelectedFilesAdapter;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 
 public class EncryptFileFragment extends Fragment implements EncryptActivityInterface.UpdateListener {
     public static final String ARG_URIS = "uris";
@@ -60,7 +51,6 @@ public class EncryptFileFragment extends Fragment implements EncryptActivityInte
     private View mEncryptFile;
     private ListView mSelectedFiles;
     private SelectedFilesAdapter mAdapter = new SelectedFilesAdapter();
-    private final Map<Uri, Bitmap> thumbnailCache = new HashMap<Uri, Bitmap>();
 
     @Override
     public void onAttach(Activity activity) {
@@ -104,6 +94,12 @@ public class EncryptFileFragment extends Fragment implements EncryptActivityInte
         mSelectedFiles = (ListView) view.findViewById(R.id.selected_files_list);
         mSelectedFiles.addFooterView(mAddView);
         mSelectedFiles.setAdapter(mAdapter);
+        mAdapter.setRemoveClickListener(new SelectedFilesAdapter.RemoveClickListener() {
+            @Override
+            public void onRemoveClicked(int position) {
+                delInputUri(position);
+            }
+        });
 
         return view;
     }
@@ -235,65 +231,7 @@ public class EncryptFileFragment extends Fragment implements EncryptActivityInte
 
     @Override
     public void onNotifyUpdate() {
-        // Clear cache if needed
-        for (Uri uri : new HashSet<Uri>(thumbnailCache.keySet())) {
-            if (!mEncryptInterface.getInputUris().contains(uri)) {
-                thumbnailCache.remove(uri);
-            }
-        }
-
-        mAdapter.notifyDataSetChanged();
+        mAdapter.updateUris(mEncryptInterface.getInputUris());
     }
 
-    private class SelectedFilesAdapter extends BaseAdapter {
-        @Override
-        public int getCount() {
-            return mEncryptInterface.getInputUris().size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return mEncryptInterface.getInputUris().get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return getItem(position).hashCode();
-        }
-
-        @Override
-        public View getView(final int position, View convertView, ViewGroup parent) {
-            Uri inputUri = mEncryptInterface.getInputUris().get(position);
-            View view;
-            if (convertView == null) {
-                view = getActivity().getLayoutInflater().inflate(R.layout.file_list_entry, null);
-            } else {
-                view = convertView;
-            }
-            ((TextView) view.findViewById(R.id.filename)).setText(FileHelper.getFilename(getActivity(), inputUri));
-            long size = FileHelper.getFileSize(getActivity(), inputUri);
-            if (size == -1) {
-                ((TextView) view.findViewById(R.id.filesize)).setText("");
-            } else {
-                ((TextView) view.findViewById(R.id.filesize)).setText(FileHelper.readableFileSize(size));
-            }
-            view.findViewById(R.id.action_remove_file_from_list).setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    delInputUri(position);
-                }
-            });
-            int px = OtherHelper.dpToPx(getActivity(), 48);
-            if (!thumbnailCache.containsKey(inputUri)) {
-                thumbnailCache.put(inputUri, FileHelper.getThumbnail(getActivity(), inputUri, new Point(px, px)));
-            }
-            Bitmap bitmap = thumbnailCache.get(inputUri);
-            if (bitmap != null) {
-                ((ImageView) view.findViewById(R.id.thumbnail)).setImageBitmap(bitmap);
-            } else {
-                ((ImageView) view.findViewById(R.id.thumbnail)).setImageResource(R.drawable.ic_doc_generic_am);
-            }
-            return view;
-        }
-    }
 }
