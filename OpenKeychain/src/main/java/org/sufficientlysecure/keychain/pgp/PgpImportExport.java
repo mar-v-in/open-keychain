@@ -150,7 +150,7 @@ public class PgpImportExport {
         for (ParcelableKeyRing entry : new IterableIterator<ParcelableKeyRing>(entries)) {
             try {
                 UncachedKeyRing key = UncachedKeyRing.decodeFromData(entry.getBytes());
-                KeyRingInfoEntry info = infos != null && infos.hasNext() ? infos.next() : new KeyRingInfoEntry()
+                KeyRingInfoEntry info = infos != null && infos.hasNext() ? infos.next() : new KeyRingInfoEntry();
                 String expectedFp = entry.getExpectedFingerprint();
                 if (expectedFp != null) {
                     if (!PgpKeyHelper.convertFingerprintToHex(key.getFingerprint()).equals(expectedFp)) {
@@ -167,10 +167,10 @@ public class PgpImportExport {
                 SaveKeyringResult result;
                 if (key.isSecret()) {
                     result = mProviderHelper.saveSecretKeyRing(key, info,
-                            new ProgressScaler(mProgressable, (int)(position*progSteps), (int)((position+1)*progSteps), 100));
+                            new ProgressScaler(mProgressable, (int) (position * progSteps), (int) ((position + 1) * progSteps), 100));
                 } else {
                     result = mProviderHelper.savePublicKeyRing(key, info,
-                            new ProgressScaler(mProgressable, (int)(position*progSteps), (int)((position+1)*progSteps), 100));
+                            new ProgressScaler(mProgressable, (int) (position * progSteps), (int) ((position + 1) * progSteps), 100));
                 }
                 if (!result.success()) {
                     badKeys += 1;

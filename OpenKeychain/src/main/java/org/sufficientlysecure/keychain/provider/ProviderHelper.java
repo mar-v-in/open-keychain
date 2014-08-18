@@ -967,7 +967,7 @@ public class ProviderHelper {
             FileImportCache<ParcelableKeyRing> cache =
                     new FileImportCache<ParcelableKeyRing>(mContext, "consolidate_secret.pcl");
             new PgpImportExport(mContext, this, new ProgressScaler(progress, 10, 25, 100))
-                    .importKeyRings(cache.readCache(), numSecrets);
+                    .importKeyRings(cache.readCache(), null, numSecrets);
         } catch (IOException e) {
             Log.e(Constants.TAG, "error importing secret");
             return new ConsolidateResult(ConsolidateResult.RESULT_ERROR, mLog);
@@ -983,7 +983,7 @@ public class ProviderHelper {
             FileImportCache<ParcelableKeyRing> cache =
                     new FileImportCache<ParcelableKeyRing>(mContext, "consolidate_public.pcl");
             new PgpImportExport(mContext, this, new ProgressScaler(progress, 25, 99, 100))
-                    .importKeyRings(cache.readCache(), numPublics);
+                    .importKeyRings(cache.readCache(), null, numPublics);
         } catch (IOException e) {
             Log.e(Constants.TAG, "error importing public");
             return new ConsolidateResult(ConsolidateResult.RESULT_ERROR, mLog);
