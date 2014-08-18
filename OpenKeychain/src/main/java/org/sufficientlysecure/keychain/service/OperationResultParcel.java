@@ -347,6 +347,7 @@ public class OperationResultParcel implements Parcelable {
         MSG_CR_ERROR_NO_MASTER (R.string.msg_cr_error_no_master),
         MSG_CR_ERROR_NO_USER_ID (R.string.msg_cr_error_no_user_id),
         MSG_CR_ERROR_NO_CERTIFY (R.string.msg_cr_error_no_certify),
+        MSG_CR_ERROR_NULL_EXPIRY(R.string.msg_cr_error_null_expiry),
         MSG_CR_ERROR_KEYSIZE_512 (R.string.msg_cr_error_keysize_512),
         MSG_CR_ERROR_UNKNOWN_ALGO (R.string.msg_cr_error_unknown_algo),
         MSG_CR_ERROR_INTERNAL_PGP (R.string.msg_cr_error_internal_pgp),
@@ -358,18 +359,27 @@ public class OperationResultParcel implements Parcelable {
         MSG_MF_ERROR_FINGERPRINT (R.string.msg_mf_error_fingerprint),
         MSG_MF_ERROR_KEYID (R.string.msg_mf_error_keyid),
         MSG_MF_ERROR_INTEGRITY (R.string.msg_mf_error_integrity),
+        MSG_MF_ERROR_MASTER_NONE(R.string.msg_mf_error_master_none),
+        MSG_MF_ERROR_NO_CERTIFY (R.string.msg_cr_error_no_certify),
         MSG_MF_ERROR_NOEXIST_PRIMARY (R.string.msg_mf_error_noexist_primary),
-        MSG_MF_ERROR_REVOKED_PRIMARY (R.string.msg_mf_error_revoked_primary),
+        MSG_MF_ERROR_NOEXIST_REVOKE (R.string.msg_mf_error_noexist_revoke),
+        MSG_MF_ERROR_NULL_EXPIRY (R.string.msg_mf_error_null_expiry),
+        MSG_MF_ERROR_PASSPHRASE_MASTER(R.string.msg_mf_error_passphrase_master),
+        MSG_MF_ERROR_PAST_EXPIRY(R.string.msg_mf_error_past_expiry),
         MSG_MF_ERROR_PGP (R.string.msg_mf_error_pgp),
+        MSG_MF_ERROR_REVOKED_PRIMARY (R.string.msg_mf_error_revoked_primary),
         MSG_MF_ERROR_SIG (R.string.msg_mf_error_sig),
+        MSG_MF_ERROR_SUBKEY_MISSING(R.string.msg_mf_error_subkey_missing),
+        MSG_MF_MASTER (R.string.msg_mf_master),
         MSG_MF_PASSPHRASE (R.string.msg_mf_passphrase),
+        MSG_MF_PASSPHRASE_KEY (R.string.msg_mf_passphrase_key),
+        MSG_MF_PASSPHRASE_EMPTY_RETRY (R.string.msg_mf_passphrase_empty_retry),
+        MSG_MF_PASSPHRASE_FAIL (R.string.msg_mf_passphrase_fail),
         MSG_MF_PRIMARY_REPLACE_OLD (R.string.msg_mf_primary_replace_old),
         MSG_MF_PRIMARY_NEW (R.string.msg_mf_primary_new),
         MSG_MF_SUBKEY_CHANGE (R.string.msg_mf_subkey_change),
-        MSG_MF_SUBKEY_MISSING (R.string.msg_mf_subkey_missing),
         MSG_MF_SUBKEY_NEW_ID (R.string.msg_mf_subkey_new_id),
         MSG_MF_SUBKEY_NEW (R.string.msg_mf_subkey_new),
-        MSG_MF_SUBKEY_PAST_EXPIRY (R.string.msg_mf_subkey_past_expiry),
         MSG_MF_SUBKEY_REVOKE (R.string.msg_mf_subkey_revoke),
         MSG_MF_SUCCESS (R.string.msg_mf_success),
         MSG_MF_UID_ADD (R.string.msg_mf_uid_add),
@@ -378,6 +388,15 @@ public class OperationResultParcel implements Parcelable {
         MSG_MF_UID_ERROR_EMPTY (R.string.msg_mf_uid_error_empty),
         MSG_MF_UNLOCK_ERROR (R.string.msg_mf_unlock_error),
         MSG_MF_UNLOCK (R.string.msg_mf_unlock),
+
+        // consolidate
+        MSG_CON (R.string.msg_con),
+        MSG_CON_SAVE_SECRET (R.string.msg_con_save_secret),
+        MSG_CON_SAVE_PUBLIC (R.string.msg_con_save_public),
+        MSG_CON_DB_CLEAR (R.string.msg_con_db_clear),
+        MSG_CON_REIMPORT_SECRET (R.plurals.msg_con_reimport_secret),
+        MSG_CON_REIMPORT_PUBLIC (R.plurals.msg_con_reimport_public),
+        MSG_CON_SUCCESS (R.string.msg_con_success),
         ;
 
         private final int mMsgId;
@@ -431,6 +450,15 @@ public class OperationResultParcel implements Parcelable {
 
         public void add(LogLevel level, LogType type, int indent) {
             mParcels.add(new OperationResultParcel.LogEntryParcel(level, type, indent, (Object[]) null));
+        }
+
+        public boolean containsType(LogType type) {
+            for(LogEntryParcel entry : new IterableIterator<LogEntryParcel>(mParcels.iterator())) {
+                if (entry.mType == type) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public boolean containsWarnings() {

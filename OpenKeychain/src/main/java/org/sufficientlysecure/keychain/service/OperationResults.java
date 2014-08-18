@@ -28,7 +28,10 @@ import com.github.johnpersano.supertoasts.SuperToast;
 import com.github.johnpersano.supertoasts.util.OnClickWrapper;
 import com.github.johnpersano.supertoasts.util.Style;
 
+import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
+import org.sufficientlysecure.keychain.pgp.CanonicalizedKeyRing;
+import org.sufficientlysecure.keychain.pgp.KeyRing;
 import org.sufficientlysecure.keychain.pgp.UncachedKeyRing;
 import org.sufficientlysecure.keychain.ui.LogDisplayActivity;
 import org.sufficientlysecure.keychain.ui.LogDisplayFragment;
@@ -49,18 +52,21 @@ public abstract class OperationResults {
         public static final int RESULT_WITH_WARNINGS = 16;
 
         // No keys to import...
-        public static final int RESULT_FAIL_NOTHING = 32 +1;
+        public static final int RESULT_FAIL_NOTHING = 32 + 1;
 
         public boolean isOkBoth() {
             return (mResult & (RESULT_OK_NEWKEYS | RESULT_OK_UPDATED))
                     == (RESULT_OK_NEWKEYS | RESULT_OK_UPDATED);
         }
+
         public boolean isOkNew() {
             return (mResult & RESULT_OK_NEWKEYS) == RESULT_OK_NEWKEYS;
         }
+
         public boolean isOkUpdated() {
             return (mResult & RESULT_OK_UPDATED) == RESULT_OK_UPDATED;
         }
+
         public boolean isFailNothing() {
             return (mResult & RESULT_FAIL_NOTHING) == RESULT_FAIL_NOTHING;
         }
@@ -124,7 +130,7 @@ public abstract class OperationResults {
                 if (this.isOkBoth()) {
                     str = activity.getResources().getQuantityString(
                             R.plurals.import_keys_added_and_updated_1, mNewKeys, mNewKeys);
-                    str += " "+ activity.getResources().getQuantityString(
+                    str += " " + activity.getResources().getQuantityString(
                             R.plurals.import_keys_added_and_updated_2, mUpdatedKeys, mUpdatedKeys, withWarnings);
                 } else if (isOkUpdated()) {
                     str = activity.getResources().getQuantityString(
@@ -185,13 +191,13 @@ public abstract class OperationResults {
     public static class EditKeyResult extends OperationResultParcel {
 
         private transient UncachedKeyRing mRing;
-        public final Long mRingMasterKeyId;
+        public final long mRingMasterKeyId;
 
         public EditKeyResult(int result, OperationLog log,
-                               UncachedKeyRing ring) {
+                             UncachedKeyRing ring) {
             super(result, log);
             mRing = ring;
-            mRingMasterKeyId = ring != null ? ring.getMasterKeyId() : null;
+            mRingMasterKeyId = ring != null ? ring.getMasterKeyId() : Constants.key.none;
         }
 
         public UncachedKeyRing getRing() {
@@ -224,8 +230,12 @@ public abstract class OperationResults {
 
     public static class SaveKeyringResult extends OperationResultParcel {
 
-        public SaveKeyringResult(int result, OperationLog log) {
+        public final long mRingMasterKeyId;
+
+        public SaveKeyringResult(int result, OperationLog log,
+                                 CanonicalizedKeyRing ring) {
             super(result, log);
+            mRingMasterKeyId = ring != null ? ring.getMasterKeyId() : Constants.key.none;
         }
 
         // Some old key was updated
@@ -238,6 +248,34 @@ public abstract class OperationResults {
 
         public boolean updated() {
             return (mResult & UPDATED) == UPDATED;
+        }
+
+        public SaveKeyringResult(Parcel source) {
+            super(source);
+            mRingMasterKeyId = source.readLong();
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            super.writeToParcel(dest, flags);
+            dest.writeLong(mRingMasterKeyId);
+        }
+
+        public static Creator<SaveKeyringResult> CREATOR = new Creator<SaveKeyringResult>() {
+            public SaveKeyringResult createFromParcel(final Parcel source) {
+                return new SaveKeyringResult(source);
+            }
+
+            public SaveKeyringResult[] newArray(final int size) {
+                return new SaveKeyringResult[size];
+            }
+        };
+    }
+
+    public static class ConsolidateResult extends OperationResultParcel {
+
+        public ConsolidateResult(int result, OperationLog log) {
+            super(result, log);
         }
 
     }

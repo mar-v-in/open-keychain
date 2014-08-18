@@ -217,8 +217,7 @@ public class UncachedKeyRing {
         aos.close();
     }
 
-    /** "Canonicalizes" a public key, removing inconsistencies in the process. This variant can be
-     * applied to public keyrings only.
+    /** "Canonicalizes" a public key, removing inconsistencies in the process.
      *
      * More specifically:
      *  - Remove all non-verifying self-certificates
@@ -235,9 +234,9 @@ public class UncachedKeyRing {
      *  - If the key is a secret key, remove all certificates by foreign keys
      *  - If no valid user id remains, log an error and return null
      *
-     * This operation writes an OperationLog which can be used as part of a OperationResultParcel.
+     * This operation writes an OperationLog which can be used as part of an OperationResultParcel.
      *
-     * @return A canonicalized key, or null on fatal error
+     * @return A canonicalized key, or null on fatal error (log will include a message in this case)
      *
      */
     @SuppressWarnings("ConstantConditions")
@@ -271,13 +270,12 @@ public class UncachedKeyRing {
             for (PGPSignature zert : new IterableIterator<PGPSignature>(masterKey.getKeySignatures())) {
                 int type = zert.getSignatureType();
 
-                // Disregard certifications on user ids, we will deal with those later
+                // These should most definitely not be here...
                 if (type == PGPSignature.NO_CERTIFICATION
                         || type == PGPSignature.DEFAULT_CERTIFICATION
                         || type == PGPSignature.CASUAL_CERTIFICATION
                         || type == PGPSignature.POSITIVE_CERTIFICATION
                         || type == PGPSignature.CERTIFICATION_REVOCATION) {
-                    // These should not be here...
                     log.add(LogLevel.WARN, LogType.MSG_KC_REVOKE_BAD_TYPE_UID, indent);
                     modified = PGPPublicKey.removeCertification(modified, zert);
                     badCerts += 1;
@@ -593,7 +591,7 @@ public class UncachedKeyRing {
                     }
 
                     // if we already have a cert, and this one is not newer: skip it
-                    if (selfCert != null && selfCert.getCreationTime().before(cert.getCreationTime())) {
+                    if (selfCert != null && cert.getCreationTime().before(selfCert.getCreationTime())) {
                         log.add(LogLevel.DEBUG, LogType.MSG_KC_SUB_DUP, indent);
                         redundantCerts += 1;
                         continue;

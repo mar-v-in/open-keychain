@@ -125,10 +125,9 @@ public class CreateKeyFinalFragment extends Fragment {
         Intent intent = new Intent(getActivity(), KeychainIntentService.class);
         intent.setAction(KeychainIntentService.ACTION_SAVE_KEYRING);
 
-        // Message is received after importing is done in KeychainIntentService
         KeychainIntentServiceHandler saveHandler = new KeychainIntentServiceHandler(
                 getActivity(),
-                getString(R.string.progress_importing),
+                getString(R.string.progress_building_key),
                 ProgressDialog.STYLE_HORIZONTAL) {
             public void handleMessage(Message message) {
                 // handle messages by standard KeychainIntentServiceHandler first
@@ -140,7 +139,7 @@ public class CreateKeyFinalFragment extends Fragment {
                     if (returnData == null) {
                         return;
                     }
-                    final OperationResults.EditKeyResult result =
+                    final OperationResults.SaveKeyringResult result =
                             returnData.getParcelable(OperationResultParcel.EXTRA_RESULT);
                     if (result == null) {
                         return;
@@ -169,9 +168,9 @@ public class CreateKeyFinalFragment extends Fragment {
         Bundle data = new Bundle();
 
         SaveKeyringParcel parcel = new SaveKeyringParcel();
-        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.CERTIFY_OTHER, null));
-        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.SIGN_DATA, null));
-        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE, null));
+        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.CERTIFY_OTHER, 0L));
+        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.SIGN_DATA, 0L));
+        parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(PublicKeyAlgorithmTags.RSA_GENERAL, 4096, KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE, 0L));
         String userId = KeyRing.createUserId(mName, mEmail, null);
         parcel.mAddUserIds.add(userId);
         parcel.mChangePrimaryUserId = userId;
@@ -191,7 +190,7 @@ public class CreateKeyFinalFragment extends Fragment {
         getActivity().startService(intent);
     }
 
-    private void uploadKey(final OperationResults.EditKeyResult editKeyResult) {
+    private void uploadKey(final OperationResults.SaveKeyringResult editKeyResult) {
         // Send all information needed to service to upload key in other thread
         final Intent intent = new Intent(getActivity(), KeychainIntentService.class);
 
@@ -211,7 +210,6 @@ public class CreateKeyFinalFragment extends Fragment {
 
         intent.putExtra(KeychainIntentService.EXTRA_DATA, data);
 
-        // Message is received after uploading is done in KeychainIntentService
         KeychainIntentServiceHandler saveHandler = new KeychainIntentServiceHandler(getActivity(),
                 getString(R.string.progress_uploading), ProgressDialog.STYLE_HORIZONTAL) {
             public void handleMessage(Message message) {

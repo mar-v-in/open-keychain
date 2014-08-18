@@ -10,6 +10,7 @@ import org.robolectric.shadows.ShadowLog;
 import org.spongycastle.bcpg.PacketTags;
 import org.spongycastle.bcpg.sig.KeyFlags;
 import org.spongycastle.bcpg.PublicKeyAlgorithmTags;
+import org.spongycastle.jce.provider.BouncyCastleProvider;
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.service.OperationResultParcel;
 import org.sufficientlysecure.keychain.service.OperationResults.EditKeyResult;
@@ -18,6 +19,7 @@ import org.sufficientlysecure.keychain.support.KeyringTestingHelper;
 import org.sufficientlysecure.keychain.support.KeyringTestingHelper.RawPacket;
 import org.sufficientlysecure.keychain.util.ProgressScaler;
 
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -59,14 +61,15 @@ public class UncachedKeyringMergeTest {
 
     @BeforeClass
     public static void setUpOnce() throws Exception {
+        Security.insertProviderAt(new BouncyCastleProvider(), 1);
         ShadowLog.stream = System.out;
 
         {
             SaveKeyringParcel parcel = new SaveKeyringParcel();
             parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(
-                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.CERTIFY_OTHER, null));
+                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.CERTIFY_OTHER, 0L));
             parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(
-                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.SIGN_DATA, null));
+                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.SIGN_DATA, 0L));
 
             parcel.mAddUserIds.add("twi");
             parcel.mAddUserIds.add("pink");
@@ -83,7 +86,7 @@ public class UncachedKeyringMergeTest {
         {
             SaveKeyringParcel parcel = new SaveKeyringParcel();
             parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(
-                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.CERTIFY_OTHER, null));
+                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.CERTIFY_OTHER, 0L));
 
             parcel.mAddUserIds.add("shy");
             // passphrase is tested in PgpKeyOperationTest, just use empty here
@@ -189,7 +192,7 @@ public class UncachedKeyringMergeTest {
 
             parcel.reset();
             parcel.mAddSubKeys.add(new SaveKeyringParcel.SubkeyAdd(
-                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.SIGN_DATA, null));
+                    PublicKeyAlgorithmTags.RSA_GENERAL, 1024, KeyFlags.SIGN_DATA, 0L));
             modifiedA = op.modifySecretKeyRing(secretRing, parcel, "").getRing();
             modifiedB = op.modifySecretKeyRing(secretRing, parcel, "").getRing();
 

@@ -395,9 +395,10 @@
     <string name="api_register_allow">Allow access</string>
     <string name="api_register_disallow">Disallow access</string>
     <string name="api_register_error_select_key">Please select a key!</string>
-    <string name="api_select_pub_keys_missing_text">No public keys were found for these identities:</string>
-    <string name="api_select_pub_keys_dublicates_text">More than one public key exist for these identities:</string>
+    <string name="api_select_pub_keys_missing_text">No keys were found for these identities:</string>
+    <string name="api_select_pub_keys_dublicates_text">More than one key exist for these identities:</string>
     <string name="api_select_pub_keys_text">Please review the list of recipients!</string>
+    <string name="api_select_pub_keys_text_no_user_ids">Please select the recipients!</string>
     <string name="api_error_wrong_signature">Signature check failed! Have you installed this app from a different source? If you are sure that this is not an attack, revoke this app\'s registration in OpenKeychain and then register the app again.</string>
 
     <!-- Share -->
@@ -456,6 +457,7 @@
         <item>Revoke Subkey</item>
     </string-array>
     <string name="edit_key_new_subkey">new</string>
+    <string name="edit_key_select_flag">Please select at least one flag!</string>
 
     <!-- Create key -->
     <string name="create_key_upload">Upload key to keyserver</string>
@@ -626,6 +628,7 @@
     <string name="msg_cr_error_no_master">No master key options specified!</string>
     <string name="msg_cr_error_no_user_id">Keyrings must be created with at least one user id!</string>
     <string name="msg_cr_error_no_certify">Master key must have certify flag!</string>
+    <string name="msg_cr_error_null_expiry">Expiry time cannot be "same as before" on key creation. This is a programming error, please file a bug report!</string>
     <string name="msg_cr_error_keysize_512">Key size must be greater or equal 512!</string>
     <string name="msg_cr_error_internal_pgp">Internal PGP error!</string>
     <string name="msg_cr_error_unknown_algo">Bad algorithm choice!</string>
@@ -637,18 +640,26 @@
     <string name="msg_mf_error_fingerprint">Actual key fingerprint does not match the expected one!</string>
     <string name="msg_mf_error_keyid">No key ID. This is an internal error, please file a bug report!</string>
     <string name="msg_mf_error_integrity">Internal error, integrity check failed!</string>
+    <string name="msg_mf_error_master_none">No master certificate found to operate on! (All revoked?)</string>
     <string name="msg_mf_error_noexist_primary">Bad primary user id specified!</string>
+    <string name="msg_mf_error_noexist_revoke">Bad user id for revocation specified!</string>
     <string name="msg_mf_error_revoked_primary">Revoked user ids cannot be primary!</string>
+    <string name="msg_mf_error_null_expiry">Expiry time cannot be "same as before" on subkey creation. This is a programming error, please file a bug report!</string>
+    <string name="msg_mf_error_passphrase_master">Fatal error decrypting master key! This is likely a programming error, please file a bug report!</string>
     <string name="msg_mf_error_pgp">PGP internal exception!</string>
     <string name="msg_mf_error_sig">Signature exception!</string>
-    <string name="msg_mf_passphrase">Changing passphrase</string>
+    <string name="msg_mf_master">Modifying master certifications</string>
+    <string name="msg_mf_passphrase">Changing passphrase for keyring…</string>
+    <string name="msg_mf_passphrase_key">Changing passphrase for subkey %s</string>
+    <string name="msg_mf_passphrase_empty_retry">Setting new passphrase failed, trying again with empty old passphrase</string>
+    <string name="msg_mf_passphrase_fail">Passphrase for subkey could not be changed! (Does it have a different one from the other keys?)</string>
     <string name="msg_mf_primary_replace_old">Replacing certificate of previous primary user id</string>
     <string name="msg_mf_primary_new">Generating new certificate for new primary user id</string>
     <string name="msg_mf_subkey_change">Modifying subkey %s</string>
-    <string name="msg_mf_subkey_missing">Tried to operate on missing subkey %s!</string>
+    <string name="msg_mf_error_subkey_missing">Tried to operate on missing subkey %s!</string>
     <string name="msg_mf_subkey_new">Generating new %1$s bit %2$s subkey</string>
     <string name="msg_mf_subkey_new_id">New subkey ID: %s</string>
-    <string name="msg_mf_subkey_past_expiry">Expiry date cannot be in the past!</string>
+    <string name="msg_mf_error_past_expiry">Expiry date cannot be in the past!</string>
     <string name="msg_mf_subkey_revoke">Revoking subkey %s</string>
     <string name="msg_mf_success">Keyring successfully modified</string>
     <string name="msg_mf_uid_add">Adding user id %s</string>
@@ -657,6 +668,21 @@
     <string name="msg_mf_uid_error_empty">User ID must not be empty!</string>
     <string name="msg_mf_unlock_error">Error unlocking keyring!</string>
     <string name="msg_mf_unlock">Unlocking keyring</string>
+
+    <!-- Consolidate -->
+    <string name="msg_con">Consolidating database</string>
+    <string name="msg_con_save_secret">Saving secret keyrings</string>
+    <string name="msg_con_save_public">Saving public keyrings</string>
+    <string name="msg_con_db_clear">Clearing database</string>
+    <plurals name="msg_con_reimport_secret">
+        <item quantity="one">Reimporting one secret key</item>
+        <item quantity="other">Reimporting %d secret keys</item>
+    </plurals>
+    <plurals name="msg_con_reimport_public">
+        <item quantity="one">Reimporting one public key</item>
+        <item quantity="other">Reimporting %d public keys</item>
+    </plurals>
+    <string name="msg_con_success">Successfully consolidated database</string>
 
     <!-- PassphraseCache -->
     <string name="passp_cache_notif_click_to_clear">Click to clear cached passphrases</string>

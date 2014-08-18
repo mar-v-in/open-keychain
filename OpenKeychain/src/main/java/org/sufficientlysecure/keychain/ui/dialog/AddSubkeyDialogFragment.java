@@ -33,6 +33,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.DatePicker;
@@ -40,6 +41,7 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TableRow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.spongycastle.bcpg.PublicKeyAlgorithmTags;
 import org.spongycastle.bcpg.sig.KeyFlags;
@@ -76,6 +78,8 @@ public class AddSubkeyDialogFragment extends DialogFragment {
     private CheckBox mFlagEncrypt;
     private CheckBox mFlagAuthenticate;
 
+    private boolean mWillBeMasterKey;
+
     public void setOnAlgorithmSelectedListener(OnAlgorithmSelectedListener listener) {
         mAlgorithmSelectedListener = listener;
     }
@@ -96,7 +100,7 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         final FragmentActivity context = getActivity();
         final LayoutInflater mInflater;
 
-        final boolean willBeMasterKey = getArguments().getBoolean(ARG_WILL_BE_MASTER_KEY);
+        mWillBeMasterKey = getArguments().getBoolean(ARG_WILL_BE_MASTER_KEY);
         mInflater = context.getLayoutInflater();
 
         CustomAlertDialogBuilder dialog = new CustomAlertDialogBuilder(context);
@@ -130,13 +134,16 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         });
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) {
-            mExpiryDatePicker.setMinDate(new Date().getTime() + DateUtils.DAY_IN_MILLIS);
+            // date picker works based on default time zone
+            Calendar minDateCal = Calendar.getInstance(TimeZone.getDefault());
+            minDateCal.add(Calendar.DAY_OF_YEAR, 1); // at least one day after creation (today)
+            mExpiryDatePicker.setMinDate(minDateCal.getTime().getTime());
         }
 
         ArrayList<Choice> choices = new ArrayList<Choice>();
         choices.add(new Choice(PublicKeyAlgorithmTags.DSA, getResources().getString(
                 R.string.dsa)));
-        if (!willBeMasterKey) {
+        if (!mWillBeMasterKey) {
             choices.add(new Choice(PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT, getResources().getString(
                     R.string.elgamal)));
         }
@@ -162,57 +169,11 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         mKeySizeSpinner.setSelection(1); // Default to 4096 for the key length
 
 
-        dialog.setPositiveButton(android.R.string.ok,
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface di, int id) {
-                        di.dismiss();
-                        Choice newKeyAlgorithmChoice = (Choice) mAlgorithmSpinner.getSelectedItem();
-                        int newKeySize = getProperKeyLength(newKeyAlgorithmChoice.getId(), getSelectedKeyLength());
-
-                        int flags = 0;
-                        if (mFlagCertify.isChecked()) {
-                            flags |= KeyFlags.CERTIFY_OTHER;
-                        }
-                        if (mFlagSign.isChecked()) {
-                            flags |= KeyFlags.SIGN_DATA;
-                        }
-                        if (mFlagEncrypt.isChecked()) {
-                            flags |= KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE;
-                        }
-                        if (mFlagAuthenticate.isChecked()) {
-                            flags |= KeyFlags.AUTHENTICATION;
-                        }
-
-                        Long expiry;
-                        if (mNoExpiryCheckBox.isChecked()) {
-                            expiry = null;
-                        } else {
-                            Calendar selectedCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-                            //noinspection ResourceType
-                            selectedCal.set(mExpiryDatePicker.getYear(),
-                                    mExpiryDatePicker.getMonth(), mExpiryDatePicker.getDayOfMonth());
-                            expiry = selectedCal.getTime().getTime() / 1000;
-                        }
-
-                        SaveKeyringParcel.SubkeyAdd newSubkey = new SaveKeyringParcel.SubkeyAdd(
-                                newKeyAlgorithmChoice.getId(),
-                                newKeySize,
-                                flags,
-                                expiry
-                        );
-                        mAlgorithmSelectedListener.onAlgorithmSelected(newSubkey);
-                    }
-                }
-        );
-
         dialog.setCancelable(true);
-        dialog.setNegativeButton(android.R.string.cancel,
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface di, int id) {
-                        di.dismiss();
-                    }
-                }
-        );
+
+        // onClickListener are set in onStart() to override default dismiss behaviour
+        dialog.setPositiveButton(android.R.string.ok, null);
+        dialog.setNegativeButton(android.R.string.cancel, null);
 
         final AlertDialog alertDialog = dialog.show();
 
@@ -246,7 +207,7 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         mAlgorithmSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                setKeyLengthSpinnerValuesForAlgorithm(((Choice) parent.getSelectedItem()).getId());
+                updateUiForAlgorithm(((Choice) parent.getSelectedItem()).getId());
 
                 setCustomKeyVisibility();
                 setOkButtonAvailability(alertDialog);
@@ -258,6 +219,74 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         });
 
         return alertDialog;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();    //super.onStart() is where dialog.show() is actually called on the underlying dialog, so we have to do it after this point
+        AlertDialog d = (AlertDialog) getDialog();
+        if (d != null) {
+            Button positiveButton = d.getButton(Dialog.BUTTON_POSITIVE);
+            Button negativeButton = d.getButton(Dialog.BUTTON_NEGATIVE);
+            positiveButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!mFlagCertify.isChecked() && !mFlagSign.isChecked()
+                            && !mFlagEncrypt.isChecked() && !mFlagAuthenticate.isChecked()) {
+                        Toast.makeText(getActivity(), R.string.edit_key_select_flag, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    // dismiss only if at least one flag is selected
+                    dismiss();
+
+                    Choice newKeyAlgorithmChoice = (Choice) mAlgorithmSpinner.getSelectedItem();
+                    int newKeySize = getProperKeyLength(newKeyAlgorithmChoice.getId(), getSelectedKeyLength());
+
+                    int flags = 0;
+                    if (mFlagCertify.isChecked()) {
+                        flags |= KeyFlags.CERTIFY_OTHER;
+                    }
+                    if (mFlagSign.isChecked()) {
+                        flags |= KeyFlags.SIGN_DATA;
+                    }
+                    if (mFlagEncrypt.isChecked()) {
+                        flags |= KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE;
+                    }
+                    if (mFlagAuthenticate.isChecked()) {
+                        flags |= KeyFlags.AUTHENTICATION;
+                    }
+
+                    long expiry;
+                    if (mNoExpiryCheckBox.isChecked()) {
+                        expiry = 0L;
+                    } else {
+                        Calendar selectedCal = Calendar.getInstance(TimeZone.getDefault());
+                        //noinspection ResourceType
+                        selectedCal.set(mExpiryDatePicker.getYear(),
+                                mExpiryDatePicker.getMonth(), mExpiryDatePicker.getDayOfMonth());
+                        // date picker uses default time zone, we need to convert to UTC
+                        selectedCal.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+                        expiry = selectedCal.getTime().getTime() / 1000;
+                    }
+
+                    SaveKeyringParcel.SubkeyAdd newSubkey = new SaveKeyringParcel.SubkeyAdd(
+                            newKeyAlgorithmChoice.getId(),
+                            newKeySize,
+                            flags,
+                            expiry
+                    );
+                    mAlgorithmSelectedListener.onAlgorithmSelected(newSubkey);
+                }
+            });
+            negativeButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dismiss();
+                }
+            });
+        }
     }
 
     private int getSelectedKeyLength() {
@@ -348,7 +377,7 @@ public class AddSubkeyDialogFragment extends DialogFragment {
         }
     }
 
-    private void setKeyLengthSpinnerValuesForAlgorithm(int algorithmId) {
+    private void updateUiForAlgorithm(int algorithmId) {
         final ArrayAdapter<CharSequence> keySizeAdapter = (ArrayAdapter<CharSequence>) mKeySizeSpinner.getAdapter();
         final Object selectedItem = mKeySizeSpinner.getSelectedItem();
         keySizeAdapter.clear();
@@ -356,14 +385,51 @@ public class AddSubkeyDialogFragment extends DialogFragment {
             case PublicKeyAlgorithmTags.RSA_GENERAL:
                 replaceArrayAdapterContent(keySizeAdapter, R.array.rsa_key_size_spinner_values);
                 mCustomKeyInfoTextView.setText(getResources().getString(R.string.key_size_custom_info_rsa));
+                // allowed flags:
+                mFlagSign.setEnabled(true);
+                mFlagEncrypt.setEnabled(true);
+                mFlagAuthenticate.setEnabled(true);
+
+                if (mWillBeMasterKey) {
+                    mFlagCertify.setEnabled(true);
+
+                    mFlagCertify.setChecked(true);
+                    mFlagSign.setChecked(false);
+                    mFlagEncrypt.setChecked(false);
+                } else {
+                    mFlagCertify.setEnabled(false);
+
+                    mFlagCertify.setChecked(false);
+                    mFlagSign.setChecked(true);
+                    mFlagEncrypt.setChecked(true);
+                }
+                mFlagAuthenticate.setChecked(false);
                 break;
             case PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT:
                 replaceArrayAdapterContent(keySizeAdapter, R.array.elgamal_key_size_spinner_values);
                 mCustomKeyInfoTextView.setText(""); // ElGamal does not support custom key length
+                // allowed flags:
+                mFlagCertify.setChecked(false);
+                mFlagCertify.setEnabled(false);
+                mFlagSign.setChecked(false);
+                mFlagSign.setEnabled(false);
+                mFlagEncrypt.setChecked(true);
+                mFlagEncrypt.setEnabled(true);
+                mFlagAuthenticate.setChecked(false);
+                mFlagAuthenticate.setEnabled(false);
                 break;
             case PublicKeyAlgorithmTags.DSA:
                 replaceArrayAdapterContent(keySizeAdapter, R.array.dsa_key_size_spinner_values);
                 mCustomKeyInfoTextView.setText(getResources().getString(R.string.key_size_custom_info_dsa));
+                // allowed flags:
+                mFlagCertify.setChecked(false);
+                mFlagCertify.setEnabled(false);
+                mFlagSign.setChecked(true);
+                mFlagSign.setEnabled(true);
+                mFlagEncrypt.setChecked(false);
+                mFlagEncrypt.setEnabled(false);
+                mFlagAuthenticate.setChecked(false);
+                mFlagAuthenticate.setEnabled(false);
                 break;
         }
         keySizeAdapter.notifyDataSetChanged();
