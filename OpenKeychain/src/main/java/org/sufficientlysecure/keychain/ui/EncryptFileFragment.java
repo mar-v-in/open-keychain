@@ -38,7 +38,7 @@ import org.sufficientlysecure.keychain.ui.adapter.SelectedFilesAdapter;
 import java.io.File;
 
 public class EncryptFileFragment extends Fragment implements EncryptActivityInterface.UpdateListener {
-    public static final String ARG_URIS = "uris";
+    private static final String ENCRYPTED_MIME_TYPE = "application/octet-stream";
 
     private static final int REQUEST_CODE_INPUT = 0x00007003;
     private static final int REQUEST_CODE_OUTPUT = 0x00007007;
@@ -179,7 +179,7 @@ public class EncryptFileFragment extends Fragment implements EncryptActivityInte
             for (Uri uri : mEncryptInterface.getInputUris()) {
                 String targetName = FileHelper.getFilename(getActivity(), uri) +
                         (mEncryptInterface.isUseArmor() ? ".asc" : ".gpg");
-                mEncryptInterface.getOutputUris().add(TemporaryStorageProvider.createFile(getActivity(), targetName));
+                mEncryptInterface.getOutputUris().add(TemporaryStorageProvider.createFile(getActivity(), targetName, ENCRYPTED_MIME_TYPE));
             }
             mEncryptInterface.startEncrypt(true);
         } else if (mEncryptInterface.getInputUris().size() == 1) {

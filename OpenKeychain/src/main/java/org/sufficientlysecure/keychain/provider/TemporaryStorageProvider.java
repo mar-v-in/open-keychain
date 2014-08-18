@@ -28,6 +28,7 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 
+import android.text.TextUtils;
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.util.DatabaseUtil;
 
@@ -37,23 +38,35 @@ import java.io.IOException;
 
 public class TemporaryStorageProvider extends ContentProvider {
 
+    public interface Columns {
+        // These columns are also used by document and media providers
+        public static final String DATA = "_data";
+        public static final String MIME_TYPE = "mime_type";
+    }
+
     private static final String DB_NAME = "tempstorage.db";
     private static final String TABLE_FILES = "files";
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_NAME = "name";
     private static final String COLUMN_TIME = "time";
+    private static final String COLUMN_MIME = "mime";
     private static final Uri BASE_URI = Uri.parse("content://org.sufficientlysecure.keychain.tempstorage/");
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
-    public static Uri createFile(Context context, String targetName) {
+    public static Uri createFile(Context context, String targetName, String targetMime) {
         ContentValues contentValues = new ContentValues();
         contentValues.put(COLUMN_NAME, targetName);
+        contentValues.put(COLUMN_MIME, targetMime);
         return context.getContentResolver().insert(BASE_URI, contentValues);
     }
 
     public static int cleanUp(Context context) {
         return context.getContentResolver().delete(BASE_URI, COLUMN_TIME + "< ?",
                 new String[]{Long.toString(System.currentTimeMillis() - Constants.TEMPFILE_TTL)});
+    }
+
+    public static int remove(Context context, Uri uri) {
+        return context.getContentResolver().delete(uri, null, null);
     }
 
     private class TemporaryStorageDatabase extends SQLiteOpenHelper {
@@ -73,7 +86,9 @@ public class TemporaryStorageProvider extends ContentProvider {
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
+            if (oldVersion == 1) {
+                db.execSQL("ALTER TABLE " + TABLE_FILES + " ADD COLUMN " + COLUMN_MIME + " TEXT DEFAULT '*/*';");
+            }
         }
     }
 
@@ -105,26 +120,33 @@ public class TemporaryStorageProvider extends ContentProvider {
         } catch (FileNotFoundException e) {
             return null;
         }
-        Cursor fileName = db.getReadableDatabase().query(TABLE_FILES, new String[]{COLUMN_NAME}, COLUMN_ID + "=?",
+        Cursor fileInfo = db.getReadableDatabase().query(TABLE_FILES, new String[]{COLUMN_NAME, COLUMN_MIME}, COLUMN_ID + "=?",
                 new String[]{uri.getLastPathSegment()}, null, null, null);
-        if (fileName != null) {
-            if (fileName.moveToNext()) {
-                MatrixCursor cursor =
-                        new MatrixCursor(new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE, "_data"});
-                cursor.newRow().add(fileName.getString(0)).add(file.length()).add(file.getAbsolutePath());
-                fileName.close();
+        if (fileInfo != null) {
+            if (fileInfo.moveToNext()) {
+                MatrixCursor cursor = new MatrixCursor(new String[]{
+                        OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE, Columns.DATA, Columns.MIME_TYPE});
+                cursor.newRow().add(fileInfo.getString(0)).add(file.length()).add(file.getAbsolutePath()).add(fileInfo.getString(1));
+                fileInfo.close();
                 return cursor;
             }
-            fileName.close();
+            fileInfo.close();
         }
         return null;
     }
 
     @Override
     public String getType(Uri uri) {
-        // Note: If we can find a files mime type, we can decrypt it to temp storage and open it after
-        //       encryption. The mime type is needed, else UI really sucks and some apps break.
-        return "*/*";
+        String mime = "*/*";
+        if (uri.getLastPathSegment() != null) {
+            Cursor query = query(uri, null, null, null, null);
+            try {
+                String s = query.getString(query.getColumnIndexOrThrow(Columns.MIME_TYPE));
+                if (!TextUtils.isEmpty(s)) mime = s;
+            } catch (Exception ignored) {
+            }
+        }
+        return mime;
     }
 
     @Override
