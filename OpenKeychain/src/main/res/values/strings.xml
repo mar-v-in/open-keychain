@@ -46,6 +46,7 @@
 
     <!-- button -->
     <string name="btn_decrypt_verify_file">Decrypt, verify, and save file</string>
+    <string name="btn_decrypt_verify_share_file">Decrypt, verify, and share file</string>
     <string name="btn_decrypt_verify_message">Decrypt and verify message</string>
     <string name="btn_encrypt_file">Encrypt and save file</string>
     <string name="btn_encrypt_share_file">Encrypt and share file</string>

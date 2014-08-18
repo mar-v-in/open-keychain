@@ -25,78 +25,60 @@
             android:paddingRight="16dp"
             android:orientation="vertical">
 
-            <LinearLayout
+            <ListView
+                    android:id="@+id/selected_files_list"
+                    android:dividerHeight="4dip"
+                    android:divider="@android:color/transparent"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_marginTop="8dp"
                     android:layout_width="match_parent"
-                    android:layout_height="?android:attr/listPreferredItemHeight"
-                    android:orientation="horizontal"
-
-                    android:id="@+id/decrypt_file_browse"
-                    android:clickable="true"
-                    style="@style/SelectableItem">
-
-                <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:paddingLeft="8dp"
-                        android:textAppearance="?android:attr/textAppearanceMedium"
-                        android:text="@string/label_file_colon"
-                        android:gravity="center_vertical"/>
-
-                <TextView
-                        android:id="@+id/decrypt_file_filename"
-                        android:paddingLeft="8dp"
-                        android:paddingRight="8dp"
-                        android:textAppearance="?android:attr/textAppearanceMedium"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:hint="@string/filemanager_title_open"
-                        android:drawableRight="@drawable/ic_action_collection"
-                        android:drawablePadding="8dp"
-                        android:gravity="center_vertical"/>
-            </LinearLayout>
+                    android:layout_height="0dip"
+                    android:layout_weight="1"/>
 
             <View
                     android:layout_width="match_parent"
                     android:layout_height="1dip"
-                    android:background="?android:attr/listDivider"
-                    android:layout_marginBottom="8dp"/>
+                    android:background="?android:attr/listDivider"/>
 
-            <CheckBox
-                android:id="@+id/decrypt_file_delete_after_decryption"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/label_delete_after_decryption" />
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:id="@+id/decrypt_file_action_decrypt"
+            <LinearLayout
+                    android:id="@+id/action_decrypt_share"
                     android:paddingLeft="8dp"
-                    android:paddingRight="8dp"
-                    android:textAppearance="?android:attr/textAppearanceMedium"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="?android:attr/listPreferredItemHeight"
-                    android:text="@string/btn_decrypt_verify_file"
+                    android:layout_height="?android:attr/listPreferredItemHeight"
+                    android:layout_marginBottom="8dp"
                     android:clickable="true"
                     style="@style/SelectableItem"
-                    android:drawableRight="@drawable/ic_action_save"
-                    android:drawablePadding="8dp"
-                    android:gravity="center_vertical"
-                    android:layout_alignParentBottom="true"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentStart="true"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal">
+                <TextView
+                        android:paddingLeft="8dp"
+                        android:paddingRight="8dp"
+                        android:textAppearance="?android:attr/textAppearanceMedium"
+                        android:layout_width="0dip"
+                        android:layout_height="match_parent"
+                        android:text="@string/btn_decrypt_verify_share_file"
+                        android:layout_weight="1"
+                        android:drawableRight="@drawable/ic_action_share"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical"/>
 
                 <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dip"
-                    android:background="?android:attr/listDivider"
-                    android:layout_above="@+id/decrypt_file_action_decrypt" />
+                        android:layout_width="1dip"
+                        android:layout_height="match_parent"
+                        android:gravity="right"
+                        android:layout_marginBottom="8dp"
+                        android:layout_marginTop="8dp"
+                        android:background="?android:attr/listDivider"/>
 
-            </RelativeLayout>
+                <ImageButton
+                        android:id="@+id/action_decrypt_file"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_action_save"
+                        android:layout_gravity="center_vertical"
+                        style="@style/SelectableItem"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

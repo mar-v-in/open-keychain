@@ -30,21 +30,22 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
-import android.widget.TextView;
+import android.widget.ListView;
 
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.helper.FileHelper;
 import org.sufficientlysecure.keychain.pgp.PgpDecryptVerifyResult;
+import org.sufficientlysecure.keychain.provider.TemporaryStorageProvider;
 import org.sufficientlysecure.keychain.service.KeychainIntentService;
 import org.sufficientlysecure.keychain.service.KeychainIntentServiceHandler;
-import org.sufficientlysecure.keychain.ui.dialog.DeleteFileDialogFragment;
+import org.sufficientlysecure.keychain.ui.adapter.SelectedFilesAdapter;
 import org.sufficientlysecure.keychain.ui.dialog.PassphraseDialogFragment;
 import org.sufficientlysecure.keychain.util.Log;
 import org.sufficientlysecure.keychain.util.Notify;
 
-import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DecryptFileFragment extends DecryptFragment {
     public static final String ARG_URI = "uri";
@@ -54,12 +55,15 @@ public class DecryptFileFragment extends DecryptFragment {
     private static final int REQUEST_CODE_OUTPUT = 0x00007007;
 
     // view
-    private TextView mFilename;
-    private CheckBox mDeleteAfter;
+    private View mAddView;
     private View mDecryptButton;
+    private View mShareButton;
+    private ListView mSelectedFiles;
+    private SelectedFilesAdapter mAdapter = new SelectedFilesAdapter();
 
     // model
     private Uri mInputUri = null;
+    private List<Uri> mDecryptedUris = new ArrayList<Uri>();
     private Uri mOutputUri = null;
 
     /**
@@ -69,45 +73,74 @@ public class DecryptFileFragment extends DecryptFragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.decrypt_file_fragment, container, false);
 
-        mFilename = (TextView) view.findViewById(R.id.decrypt_file_filename);
-        mDeleteAfter = (CheckBox) view.findViewById(R.id.decrypt_file_delete_after_decryption);
-        mDecryptButton = view.findViewById(R.id.decrypt_file_action_decrypt);
-        view.findViewById(R.id.decrypt_file_browse).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    FileHelper.openDocument(DecryptFileFragment.this, "*/*", REQUEST_CODE_INPUT);
-                } else {
-                    FileHelper.openFile(DecryptFileFragment.this, mInputUri, "*/*",
-                            REQUEST_CODE_INPUT);
-                }
-            }
-        });
-        mDecryptButton.setOnClickListener(new View.OnClickListener() {
+        mShareButton = view.findViewById(R.id.action_decrypt_share);
+//        mShareButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                decryptAction();
+//            }
+//        });
+        mDecryptButton = view.findViewById(R.id.action_decrypt_file);
+//        mDecryptButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                decryptAction();
+//            }
+//        });
+
+        mAddView = inflater.inflate(R.layout.file_list_entry_add, null);
+        mAddView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                decryptAction();
+                addInputUri();
+            }
+        });
+        mSelectedFiles = (ListView) view.findViewById(R.id.selected_files_list);
+        mSelectedFiles.addFooterView(mAddView);
+        mSelectedFiles.setAdapter(mAdapter);
+        mAdapter.setRemoveClickListener(new SelectedFilesAdapter.RemoveClickListener() {
+            @Override
+            public void onRemoveClicked(int position) {
+                delInputUri(position);
             }
         });
 
         return view;
     }
 
+    private void delInputUri(int position) {
+        Uri uri = mDecryptedUris.remove(position);
+        TemporaryStorageProvider.remove(getActivity(), uri);
+        mAdapter.updateUris(mDecryptedUris);
+    }
+
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        setInputUri(getArguments().<Uri>getParcelable(ARG_URI));
+        addEncryptedUri(getArguments().<Uri>getParcelable(ARG_URI));
     }
 
-    private void setInputUri(Uri inputUri) {
+    private void addInputUri() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            FileHelper.openDocument(DecryptFileFragment.this, "*/*", REQUEST_CODE_INPUT);
+        } else {
+            FileHelper.openFile(DecryptFileFragment.this, mInputUri, "*/*",
+                    REQUEST_CODE_INPUT);
+        }
+    }
+
+    private void addEncryptedUri(Uri inputUri) {
         if (inputUri == null) {
-            mInputUri = null;
-            mFilename.setText("");
             return;
         }
-
         mInputUri = inputUri;
-        mFilename.setText(FileHelper.getFilename(getActivity(), mInputUri));
+        decryptOriginalFilename(null);
+    }
+
+    private void addDecryptedUri(Uri uri) {
+        mDecryptedUris.add(uri);
+        mAdapter.updateUris(mDecryptedUris);
     }
 
     private void decryptAction() {
@@ -116,7 +149,7 @@ public class DecryptFileFragment extends DecryptFragment {
             return;
         }
 
-//        askForOutputFilename();
+//        decryptUsingMeta();
         decryptOriginalFilename(null);
     }
 
@@ -127,22 +160,12 @@ public class DecryptFileFragment extends DecryptFragment {
         return name;
     }
 
-    private void askForOutputFilename(String originalFilename) {
-        String targetName;
-        if (!TextUtils.isEmpty(originalFilename)) {
-            targetName = originalFilename;
-        } else {
-            targetName = removeEncryptedAppend(FileHelper.getFilename(getActivity(), mInputUri));
+    private void decryptUsingMeta(String filename, String mimeType) {
+        if (!TextUtils.isEmpty(filename)) {
+            filename = removeEncryptedAppend(FileHelper.getFilename(getActivity(), mInputUri));
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-            File file = new File(mInputUri.getPath());
-            File parentDir = file.exists() ? file.getParentFile() : Constants.Path.APP_DIR;
-            File targetFile = new File(parentDir, targetName);
-            FileHelper.saveFile(this, getString(R.string.title_decrypt_to_file),
-                    getString(R.string.specify_file_to_decrypt_to), targetFile, REQUEST_CODE_OUTPUT);
-        } else {
-            FileHelper.saveDocument(this, "*/*", targetName, REQUEST_CODE_OUTPUT);
-        }
+        mOutputUri = TemporaryStorageProvider.createFile(getActivity(), filename, mimeType);
+        decryptStart(null);
     }
 
     private void decryptOriginalFilename(String passphrase) {
@@ -189,7 +212,8 @@ public class DecryptFileFragment extends DecryptFragment {
                     } else {
 
                         // go on...
-                        askForOutputFilename(decryptVerifyResult.getDecryptMetadata().getFilename());
+                        decryptUsingMeta(decryptVerifyResult.getDecryptMetadata().getFilename(),
+                                decryptVerifyResult.getDecryptMetadata().getMimeType());
                     }
                 }
             }
@@ -268,13 +292,15 @@ public class DecryptFileFragment extends DecryptFragment {
                     } else {
                         // display signature result in activity
                         onResult(decryptVerifyResult);
-
+                        addDecryptedUri(mOutputUri);
+                        /*
                         if (mDeleteAfter.isChecked()) {
                             // Create and show dialog to delete original file
                             DeleteFileDialogFragment deleteFileDialog = DeleteFileDialogFragment.newInstance(mInputUri);
                             deleteFileDialog.show(getActivity().getSupportFragmentManager(), "deleteDialog");
-                            setInputUri(null);
+                            addEncryptedUri(null);
                         }
+                        */
 
                         /*
                         // A future open after decryption feature
@@ -305,7 +331,7 @@ public class DecryptFileFragment extends DecryptFragment {
         switch (requestCode) {
             case REQUEST_CODE_INPUT: {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    setInputUri(data.getData());
+                    addEncryptedUri(data.getData());
                 }
                 return;
             }
